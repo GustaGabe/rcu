@@ -56,8 +56,8 @@ app/
   diary/[date].tsx
   appointments/[id].tsx
 src/
-  db/                    # client.ts (abre o banco), migrations.ts
-  repositories/          # medications.ts, diary.ts, appointments.ts, conditions.ts
+  db/                    # client.ts (useDb, initDatabase), migrations.ts, types.ts (Db), devData.ts
+  repositories/          # medications, doses, diary, appointments, conditions
   conditions/            # definições por doença
     types.ts             # ConditionDefinition, FieldDefinition
     index.ts             # registro das doenças disponíveis
@@ -67,16 +67,17 @@ src/
     labels.ts            # rótulos pt-BR dos enums
     dates.ts             # chaves ISO e formatação pt-BR
     format.ts            # descrição de horários, dias de crise, percentuais
-    schedule.ts          # dosesForDate(schedules, date), função pura
-    adherence.ts         # % de doses tomadas em 7 e 30 dias
+    schedule.ts          # dosesForDate(medications, schedules, date), applyDoseLogs
+    adherence.ts         # adherenceRatio: fração das doses previstas que foram tomadas
     diarySchema.ts       # buildDiarySchema(def) gera o zod a partir da definição
   notifications/scheduler.ts   # rescheduleAll()
   components/            # base visual (ver "Design") e FloatingTabBar
-  mocks/data.ts          # TEMPORÁRIO: dados falsos da etapa 2, removidos na etapa 3
+  hooks/useFocusQuery.ts # carrega dados quando a tela ganha foco
+  testing/testDb.ts      # Db sobre better-sqlite3 em memória, só para testes
   theme/                 # tokens: cores, tons, espaçamentos, raios, fontes, tipografia
 ```
 
-`@/` é alias para `src/` (ex.: `import { Card } from '@/components/Card'`). Ainda não existem, e entram nas etapas 3 a 6: `db/`, `repositories/`, `notifications/`, `schedule.ts`, `adherence.ts` e `diarySchema.ts`.
+`@/` é alias para `src/` (ex.: `import { Surface } from '@/components/Surface'`). Ainda não existem, e entram nas etapas 5 e 6: `notifications/` e `diarySchema.ts`.
 
 ## Design
 
@@ -92,7 +93,9 @@ O visual parte do roxo, cor de conscientização das doenças inflamatórias int
 
 ## Regras de arquitetura
 
-- **A UI nunca acessa o banco.** Telas chamam funções de `src/repositories/*`.
+- **A UI nunca acessa o banco.** Telas não escrevem SQL: chamam funções de `src/repositories/*`, que recebem o `Db` como primeiro argumento e convertem snake_case ↔ camelCase.
+- **Carregar dados numa tela:** uma função `load(db)` que junta as consultas (no escopo do módulo, ou em `useCallback` se depender de parâmetro da rota) passada a `useFocusQuery`. Ela roda de novo quando a tela ganha foco; depois de gravar, chame `reload()`. `useDb()` dá o banco para as gravações.
+- **A doença do diário** vem de `getPrimaryCondition(db)` (primeira de `user_conditions`), nunca de um id fixo.
 - **Nada específico de doença fora de `src/conditions/`.** Telas, repositórios e validação leem a `ConditionDefinition`. Se aparecer `bristol` ou `crise` escrito à mão numa tela, está errado.
 - **Doses não são gravadas com antecedência.** A tela Hoje calcula as doses do dia com `dosesForDate(schedules, date)` e cruza com `dose_logs`. Só vira linha o que o usuário marcou (`taken` ou `skipped`).
 - **O histórico nunca é apagado.** Remédios são pausados ou arquivados, nunca removidos.
@@ -174,7 +177,15 @@ Fora do MVP: estoque, desmame automático, busca na lista da ANVISA, gráficos, 
 
 ## Testes
 
-Jest, começando pelas funções puras: `dosesForDate` (diário, intervalo, datas de início e fim, status pausado), cálculo de adesão e `buildDiarySchema` para cada doença registrada.
+Jest, em três camadas:
+
+- **Funções puras** (`src/domain`, `src/conditions`): `dosesForDate`, `applyDoseLogs`, `adherenceRatio`, formatação de datas, definições de doença e, na etapa 5, `buildDiarySchema`.
+- **Migrações e repositórios** rodam contra SQLite de verdade em memória: `createMigratedDb()` de `src/testing/testDb.ts` (better-sqlite3). Todo repositório novo ganha teste aí.
+- As telas não têm teste automatizado; confira no aparelho.
+
+## Dados de desenvolvimento
+
+Em modo de desenvolvimento, um **toque longo no painel roxo da tela Hoje** abre um menu com "Carregar exemplo" (troca tudo por um mês de dados fictícios, com datas relativas a hoje) e "Apagar tudo". O código está em `src/db/devData.ts` e não aparece em builds de produção (`__DEV__`). Atenção: "Carregar exemplo" apaga os registros reais do aparelho.
 
 ## Saúde e privacidade
 

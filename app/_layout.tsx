@@ -6,14 +6,15 @@ import { InstrumentSans_600SemiBold } from '@expo-google-fonts/instrument-sans/6
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { DATABASE_NAME, initDatabase } from '@/db/client';
 import { colors, fonts } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
 
-// Na etapa 3 este layout também abre o banco e roda as migrações.
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     BricolageGrotesque_600SemiBold,
@@ -23,14 +24,12 @@ export default function RootLayout() {
     InstrumentSans_600SemiBold,
   });
 
-  useEffect(() => {
-    if (loaded || error) SplashScreen.hideAsync();
-  }, [loaded, error]);
-
   if (!loaded && !error) return null;
 
+  // O provider abre o banco e roda as migrações antes de montar as telas.
   return (
-    <>
+    <SQLiteProvider databaseName={DATABASE_NAME} onInit={initDatabase}>
+      <HideSplashWhenReady />
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -47,6 +46,14 @@ export default function RootLayout() {
         <Stack.Screen name="diary/[date]" options={{ title: 'Registro do dia' }} />
         <Stack.Screen name="appointments/[id]" options={{ title: '' }} />
       </Stack>
-    </>
+    </SQLiteProvider>
   );
+}
+
+/** Montado só quando fontes e banco estão prontos: aí a splash pode sair. */
+function HideSplashWhenReady() {
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+  return null;
 }

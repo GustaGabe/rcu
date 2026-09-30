@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/Button';
@@ -8,13 +9,14 @@ import { FieldValue } from '@/components/FieldValue';
 import { Screen } from '@/components/Screen';
 import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
-import { activeFields, getCondition } from '@/conditions';
+import { activeFields } from '@/conditions';
+import type { Db } from '@/db/types';
 import { formatDayMonth, formatWeekdayLong, isDateKey } from '@/domain/dates';
 import { capitalizeFirst, isDateInEpisode } from '@/domain/format';
-import { diaryEntries, episodes } from '@/mocks/data';
+import { useFocusQuery } from '@/hooks/useFocusQuery';
+import { getPrimaryCondition } from '@/repositories/conditions';
+import { getDiaryEntry, getPreviousDiaryEntry, listEpisodes } from '@/repositories/diary';
 import { colors, spacing } from '@/theme';
-
-const condition = getCondition('rcu');
 
 export default function DiaryEntryScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
@@ -31,13 +33,24 @@ export default function DiaryEntryScreen() {
 }
 
 function DiaryEntryView({ date }: { date: string }) {
-  const entries = diaryEntries.filter((e) => e.conditionId === condition.id);
-  const entry = entries.find((e) => e.date === date);
-  // Sem registro no dia, os valores padrão vêm do registro anterior (D1).
-  const previous = entries.filter((e) => e.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
-  const values = entry?.values ?? previous?.values ?? {};
+  const load = useCallback(
+    async (db: Db) => {
+      const condition = await getPrimaryCondition(db);
+      const [entry, previous, episodes] = await Promise.all([
+        getDiaryEntry(db, condition.id, date),
+        getPreviousDiaryEntry(db, condition.id, date),
+        listEpisodes(db, condition.id),
+      ]);
+      return { condition, entry, previous, episodes };
+    },
+    [date],
+  );
+  const { data } = useFocusQuery(load);
+  if (!data) return <Screen>{null}</Screen>;
 
-  const conditionEpisodes = episodes.filter((e) => e.conditionId === condition.id);
+  const { condition, entry, previous, episodes: conditionEpisodes } = data;
+  // Sem registro no dia, os valores padrão vêm do registro anterior (D1).
+  const values = entry?.values ?? previous?.values ?? {};
   const openEpisode = conditionEpisodes.find((e) => e.endDate === null);
   const inEpisode = isDateInEpisode(date, conditionEpisodes);
   const episodeLabel = condition.episodeLabel;

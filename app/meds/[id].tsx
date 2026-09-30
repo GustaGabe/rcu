@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Chip } from '@/components/Chip';
@@ -11,8 +12,10 @@ import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
 import { formatDateMedium } from '@/domain/dates';
 import { medicationFormLabels, medicationStatusSingular } from '@/domain/labels';
+import type { Db } from '@/db/types';
 import type { MedicationStatus } from '@/domain/types';
-import { medications, schedules } from '@/mocks/data';
+import { useFocusQuery } from '@/hooks/useFocusQuery';
+import { getMedication, listSchedules } from '@/repositories/medications';
 import { colors, fonts, radius, spacing, type Tone } from '@/theme';
 
 const statusTones: Record<MedicationStatus, Tone> = { active: 'sage', paused: 'amber', archived: 'neutral' };
@@ -29,7 +32,21 @@ export default function MedicationScreen() {
     );
   }
 
-  const med = medications.find((m) => String(m.id) === id);
+  return <MedicationDetail id={Number(id)} />;
+}
+
+function MedicationDetail({ id }: { id: number }) {
+  const load = useCallback(
+    async (db: Db) => {
+      const [med, schedules] = await Promise.all([getMedication(db, id), listSchedules(db, id)]);
+      return { med, schedules };
+    },
+    [id],
+  );
+  const { data } = useFocusQuery(load);
+  if (!data) return <Screen>{null}</Screen>;
+
+  const { med, schedules: medSchedules } = data;
   if (!med) {
     return (
       <Screen>
@@ -37,10 +54,6 @@ export default function MedicationScreen() {
       </Screen>
     );
   }
-
-  const medSchedules = schedules
-    .filter((s) => s.medicationId === med.id)
-    .sort((a, b) => a.timeOfDay.localeCompare(b.timeOfDay));
 
   return (
     <Screen>

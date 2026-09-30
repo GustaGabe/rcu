@@ -12,16 +12,26 @@ import { Screen } from '@/components/Screen';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
+import type { Db } from '@/db/types';
 import { formatRelativeDays, formatTime, toDateTimeKey } from '@/domain/dates';
 import { appointmentTypeLabels } from '@/domain/labels';
 import type { Appointment } from '@/domain/types';
-import { appointments, doctorQuestions } from '@/mocks/data';
+import { useFocusQuery } from '@/hooks/useFocusQuery';
+import { countOpenQuestions, listAppointments } from '@/repositories/appointments';
 import { colors, spacing } from '@/theme';
 
 type When = 'upcoming' | 'past';
 
+async function loadAppointments(db: Db) {
+  const [appointments, openQuestions] = await Promise.all([listAppointments(db), countOpenQuestions(db)]);
+  return { appointments, openQuestions };
+}
+
 export default function AppointmentsScreen() {
   const [when, setWhen] = useState<When>('upcoming');
+  const { data } = useFocusQuery(loadAppointments);
+  const appointments = data?.appointments ?? [];
+  const openQuestions = data?.openQuestions ?? {};
   const now = toDateTimeKey(new Date());
   const upcoming = appointments
     .filter((a) => a.datetime >= now)
@@ -44,7 +54,7 @@ export default function AppointmentsScreen() {
         ]}
       />
 
-      {items.length === 0 ? (
+      {!data ? null : items.length === 0 ? (
         <EmptyState
           icon="calendar-clear-outline"
           message={when === 'upcoming' ? 'Nenhuma consulta agendada.' : 'Nenhuma consulta passada.'}
@@ -52,7 +62,13 @@ export default function AppointmentsScreen() {
       ) : (
         <Surface padded={false}>
           {items.map((a, index) => (
-            <AppointmentRow key={a.id} appointment={a} first={index === 0} upcoming={when === 'upcoming'} />
+            <AppointmentRow
+              key={a.id}
+              appointment={a}
+              first={index === 0}
+              upcoming={when === 'upcoming'}
+              openQuestions={openQuestions[a.id] ?? 0}
+            />
           ))}
         </Surface>
       )}
@@ -60,9 +76,14 @@ export default function AppointmentsScreen() {
   );
 }
 
-function AppointmentRow({ appointment, first, upcoming }: { appointment: Appointment; first: boolean; upcoming: boolean }) {
-  const pending = doctorQuestions.filter((q) => q.appointmentId === appointment.id && !q.asked).length;
+interface AppointmentRowProps {
+  appointment: Appointment;
+  first: boolean;
+  upcoming: boolean;
+  openQuestions: number;
+}
 
+function AppointmentRow({ appointment, first, upcoming, openQuestions: pending }: AppointmentRowProps) {
   return (
     <ListRow
       first={first}

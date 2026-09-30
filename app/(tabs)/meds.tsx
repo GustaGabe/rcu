@@ -12,10 +12,12 @@ import { Screen } from '@/components/Screen';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
+import type { Db } from '@/db/types';
 import { describeSchedules } from '@/domain/format';
 import { medicationStatusLabels } from '@/domain/labels';
 import type { MedicationStatus } from '@/domain/types';
-import { medications, schedules } from '@/mocks/data';
+import { useFocusQuery } from '@/hooks/useFocusQuery';
+import { listMedications, listSchedules } from '@/repositories/medications';
 import { colors, spacing } from '@/theme';
 
 const statuses: MedicationStatus[] = ['active', 'paused', 'archived'];
@@ -26,8 +28,16 @@ const emptyMessages: Record<MedicationStatus, string> = {
   archived: 'Remédios arquivados aparecem aqui, com o histórico preservado.',
 };
 
+async function loadMeds(db: Db) {
+  const [medications, schedules] = await Promise.all([listMedications(db), listSchedules(db)]);
+  return { medications, schedules };
+}
+
 export default function MedsScreen() {
   const [status, setStatus] = useState<MedicationStatus>('active');
+  const { data } = useFocusQuery(loadMeds);
+  const medications = data?.medications ?? [];
+  const schedules = data?.schedules ?? [];
   const items = medications.filter((m) => m.status === status);
   const activeCount = medications.filter((m) => m.status === 'active').length;
 
@@ -55,7 +65,7 @@ export default function MedsScreen() {
         }))}
       />
 
-      {items.length === 0 ? (
+      {!data ? null : items.length === 0 ? (
         <EmptyState icon="medkit-outline" message={emptyMessages[status]} />
       ) : (
         <Surface padded={false}>

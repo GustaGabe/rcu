@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 
@@ -16,17 +16,30 @@ import { Text } from '@/components/Text';
 import { formatRelativeDays, formatTime, formatWeekdayLong, toDateTimeKey } from '@/domain/dates';
 import { capitalizeFirst } from '@/domain/format';
 import { appointmentTypeLabels } from '@/domain/labels';
-import type { DoctorQuestion } from '@/domain/types';
-import { appointments, doctorQuestions } from '@/mocks/data';
+import { useDb } from '@/db/client';
+import type { Db } from '@/db/types';
+import { useFocusQuery } from '@/hooks/useFocusQuery';
+import { getAppointment, listQuestions, setQuestionAsked } from '@/repositories/appointments';
 import { colors, radius, spacing } from '@/theme';
 
 export default function AppointmentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const appointment = appointments.find((a) => String(a.id) === id);
-  const [questions, setQuestions] = useState<DoctorQuestion[]>(() =>
-    doctorQuestions.filter((q) => String(q.appointmentId) === id),
-  );
+  return <AppointmentDetail id={Number(id)} />;
+}
 
+function AppointmentDetail({ id }: { id: number }) {
+  const db = useDb();
+  const load = useCallback(
+    async (db: Db) => {
+      const [appointment, questions] = await Promise.all([getAppointment(db, id), listQuestions(db, id)]);
+      return { appointment, questions };
+    },
+    [id],
+  );
+  const { data, reload } = useFocusQuery(load);
+  if (!data) return <Screen>{null}</Screen>;
+
+  const { appointment, questions } = data;
   if (!appointment) {
     return (
       <Screen>
@@ -38,10 +51,10 @@ export default function AppointmentScreen() {
   const upcoming = appointment.datetime >= toDateTimeKey(new Date());
   const asked = questions.filter((q) => q.asked).length;
 
-  // Estado só em memória por enquanto; na etapa 6 grava em doctor_questions.
-  function toggleAsked(questionId: number) {
+  async function toggleAsked(questionId: number, asked: boolean) {
     Haptics.selectionAsync();
-    setQuestions((current) => current.map((q) => (q.id === questionId ? { ...q, asked: !q.asked } : q)));
+    await setQuestionAsked(db, questionId, asked);
+    reload();
   }
 
   return (
@@ -88,7 +101,7 @@ export default function AppointmentScreen() {
           {questions.map((q, index) => (
             <Pressable
               key={q.id}
-              onPress={() => toggleAsked(q.id)}
+              onPress={() => toggleAsked(q.id, !q.asked)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: q.asked }}
               style={({ pressed }) => [styles.question, index > 0 && styles.divider, pressed && styles.pressed]}

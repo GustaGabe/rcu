@@ -90,6 +90,8 @@ npm run lint            # ESLint
 npm run typecheck       # TypeScript
 ```
 
+Na primeira abertura o app começa vazio. Para ver as telas com dados, dê um **toque longo no painel roxo da tela Hoje** e escolha "Carregar exemplo" (só existe em modo de desenvolvimento, e substitui o que houver no aparelho).
+
 Para testar notificações é preciso um build de desenvolvimento, porque o Expo Go tem limitações:
 
 ```bash
@@ -105,9 +107,9 @@ Em ritmo de estudo (cerca de 1 hora por dia), são de 6 a 10 semanas. Cada etapa
 
 - [x] **1. Setup:** `create-expo-app`, TypeScript, ESLint, Git e GitHub, rodando no Expo Go
 - [x] **2. Navegação com telas falsas:** quatro abas e telas empilhadas com dados fixos
-- [ ] **3. Banco de dados:** cliente, migrações e repositórios; os dados fixos passam a vir do SQLite
-- [ ] **4. Medicações:** cadastro com validação, lista, `dosesForDate` com testes e botão "tomei" na tela Hoje. **A partir daqui, usar o app de verdade.**
-- [ ] **5. Diário e crises:** formulário gerado pela definição da doença, histórico e adesão
+- [x] **3. Banco de dados:** cliente, migrações e repositórios; os dados fixos passam a vir do SQLite. Adiantados daqui: `dosesForDate`, o botão "Tomei" gravando no banco e o cálculo de adesão
+- [ ] **4. Medicações:** cadastro e edição com validação, pausar e arquivar. **A partir daqui, usar o app de verdade.**
+- [ ] **5. Diário e crises:** formulário gerado pela definição da doença e botões de crise
 - [ ] **6. Consultas e notificações:** CRUD, perguntas para o médico, `rescheduleAll()` e testes em build de desenvolvimento
 - [ ] **7. Polimento e publicação:** ícone, splash, telas vazias, política de privacidade e envio para a loja
 

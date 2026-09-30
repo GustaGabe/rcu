@@ -1,8 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { Button } from '@/components/Button';
@@ -14,7 +13,10 @@ import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
-import { activeFields, formatFieldValue, getCondition } from '@/conditions';
+import { activeFields, formatFieldValue } from '@/conditions';
+import { useDb } from '@/db/client';
+import { clearAllData, loadExampleData } from '@/db/devData';
+import type { Db } from '@/db/types';
 import {
   formatDateShort,
   formatDayMonth,
@@ -27,44 +29,81 @@ import {
 import { capitalizeFirst } from '@/domain/format';
 import { appointmentTypeLabels } from '@/domain/labels';
 import type { ScheduledDose } from '@/domain/types';
-import { appointments, diaryEntries, doctorQuestions, episodes, todayDoses } from '@/mocks/data';
+import { useFocusQuery } from '@/hooks/useFocusQuery';
+import { countOpenQuestions, getNextAppointment } from '@/repositories/appointments';
+import { getPrimaryCondition } from '@/repositories/conditions';
+import { getDiaryEntry, listEpisodes } from '@/repositories/diary';
+import { getDosesForDate, logDose } from '@/repositories/doses';
 import { colors, fonts, radius, spacing } from '@/theme';
 
-const condition = getCondition('rcu');
+async function loadToday(db: Db) {
+  const today = todayKey();
+  const condition = await getPrimaryCondition(db);
+  const [doses, entry, episodes, nextAppointment, openQuestions] = await Promise.all([
+    getDosesForDate(db, today),
+    getDiaryEntry(db, condition.id, today),
+    listEpisodes(db, condition.id),
+    getNextAppointment(db, toDateTimeKey(new Date())),
+    countOpenQuestions(db),
+  ]);
+  return {
+    today,
+    condition,
+    doses,
+    entry,
+    openEpisode: episodes.find((e) => e.endDate === null) ?? null,
+    nextAppointment,
+    nextQuestions: nextAppointment ? (openQuestions[nextAppointment.id] ?? 0) : 0,
+  };
+}
 
 export default function TodayScreen() {
-  const today = todayKey();
-  const [doses, setDoses] = useState<ScheduledDose[]>(todayDoses);
+  const db = useDb();
+  const { data, reload } = useFocusQuery(loadToday);
 
-  // Estado só em memória por enquanto; na etapa 4 grava em dose_logs.
-  function markTaken(dose: ScheduledDose) {
+  if (!data) return <Screen tab>{null}</Screen>;
+  const { today, condition, doses, entry: todayEntry, openEpisode, nextAppointment, nextQuestions } = data;
+
+  async function markTaken(dose: ScheduledDose) {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const takenAt = toDateTimeKey(new Date());
-    setDoses((current) =>
-      current.map((d) =>
-        d.scheduleId === dose.scheduleId && d.scheduledFor === dose.scheduledFor
-          ? { ...d, status: 'taken', takenAt }
-          : d,
-      ),
-    );
+    await logDose(db, {
+      scheduleId: dose.scheduleId,
+      scheduledFor: dose.scheduledFor,
+      status: 'taken',
+      takenAt: toDateTimeKey(new Date()),
+    });
+    reload();
   }
 
-  const todayEntry = diaryEntries.find((e) => e.conditionId === condition.id && e.date === today);
-  const openEpisode = episodes.find((e) => e.conditionId === condition.id && e.endDate === null);
-  const nextAppointment = appointments
-    .filter((a) => a.datetime >= `${today}T00:00:00`)
-    .sort((a, b) => a.datetime.localeCompare(b.datetime))[0];
-  const nextQuestions = nextAppointment
-    ? doctorQuestions.filter((q) => q.appointmentId === nextAppointment.id && !q.asked).length
-    : 0;
+  // Só em desenvolvimento: toque longo no painel troca os dados por um exemplo ou apaga tudo.
+  function openDevMenu() {
+    Alert.alert('Dados de desenvolvimento', 'Este menu só existe no modo de desenvolvimento.', [
+      {
+        text: 'Carregar exemplo',
+        onPress: async () => {
+          await loadExampleData(db);
+          reload();
+        },
+      },
+      {
+        text: 'Apagar tudo',
+        style: 'destructive',
+        onPress: async () => {
+          await clearAllData(db);
+          reload();
+        },
+      },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }
 
   return (
     <Screen tab>
-      <Hero date={today} doses={doses} />
+      <Hero date={today} doses={doses} onLongPress={__DEV__ ? openDevMenu : undefined} />
 
       <SectionHeader title="Doses de hoje" />
       {doses.length === 0 ? (
-        <EmptyState icon="checkmark-done-outline" message="Nenhuma dose marcada para hoje." />
+        <EmptyState icon="checkmark-done-outline" message="Cadastre seus remédios na aba Remédios e as doses de cada dia aparecem aqui, nos horários certos." />
       ) : (
         <Surface padded={false} style={styles.timeline}>
           {doses.map((dose, index) => (
@@ -157,14 +196,14 @@ export default function TodayScreen() {
 }
 
 /** Painel do topo: a data e o progresso das doses do dia. */
-function Hero({ date, doses }: { date: string; doses: ScheduledDose[] }) {
+function Hero({ date, doses, onLongPress }: { date: string; doses: ScheduledDose[]; onLongPress?: () => void }) {
   const taken = doses.filter((d) => d.status === 'taken').length;
   const next = doses
     .filter((d) => d.status === 'pending')
     .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))[0];
 
   return (
-    <View style={styles.hero}>
+    <Pressable onLongPress={onLongPress} delayLongPress={600} style={styles.hero}>
       <Text color={colors.lavender} variant="bodyStrong">
         {capitalizeFirst(formatWeekdayLong(date))}
       </Text>
@@ -174,7 +213,7 @@ function Hero({ date, doses }: { date: string; doses: ScheduledDose[] }) {
 
       <View style={styles.heroRow}>
         <ProgressRing
-          progress={doses.length ? taken / doses.length : 1}
+          progress={doses.length ? taken / doses.length : 0}
           color={colors.lavender}
           trackColor={colors.plumRaised}
         >
@@ -199,17 +238,19 @@ function Hero({ date, doses }: { date: string; doses: ScheduledDose[] }) {
                 {next.medicationName}
               </Text>
             </>
+          ) : doses.length === 0 ? (
+            <Text color={colors.onPlumSoft}>Nenhuma dose prevista para hoje.</Text>
           ) : (
             <>
               <Ionicons name="checkmark-circle" size={28} color={colors.lavender} />
               <Text color={colors.onPlum} variant="heading">
-                Todas as doses de hoje foram tomadas
+                {taken === doses.length ? 'Todas as doses de hoje foram tomadas' : 'Todas as doses de hoje foram marcadas'}
               </Text>
             </>
           )}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
