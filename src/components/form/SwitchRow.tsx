@@ -21,6 +21,7 @@ export function SwitchRow({ label, value, onChange }: SwitchRowProps) {
         onValueChange={onChange}
         accessibilityLabel={label}
         trackColor={{ false: colors.surfaceSunken, true: colors.violet }}
+        thumbColor={colors.surface}
         ios_backgroundColor={colors.surfaceSunken}
       />
     </View>

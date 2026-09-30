@@ -55,7 +55,8 @@ app/
   meds/[id].tsx          # detalhe: editar, pausar, reativar, arquivar
   meds/form.tsx          # modal de cadastro (sem id) e edição (?id=)
   diary/[date].tsx
-  appointments/[id].tsx
+  appointments/[id].tsx  # detalhe: perguntas, respostas, editar, apagar
+  appointments/form.tsx  # modal de cadastro (sem id) e edição (?id=)
 src/
   db/                    # client.ts (useDb, initDatabase), migrations.ts, types.ts (Db), devData.ts
   repositories/          # medications, doses, diary, appointments, conditions
@@ -68,11 +69,15 @@ src/
     labels.ts            # rótulos pt-BR dos enums
     dates.ts             # chaves ISO e formatação pt-BR
     medicationForm.ts    # schema zod do M1 e conversões formulário ↔ MedicationDraft
+    appointmentForm.ts   # schema zod do C1 e conversões
+    diarySchema.ts       # buildDiarySchema(def), valores iniciais do dia
     format.ts            # descrição de horários, dias de crise, percentuais
     schedule.ts          # dosesForDate(medications, schedules, date), applyDoseLogs
     adherence.ts         # adherenceRatio: fração das doses previstas que foram tomadas
     diarySchema.ts       # buildDiarySchema(def) gera o zod a partir da definição
-  notifications/scheduler.ts   # rescheduleAll()
+  notifications/
+    plan.ts              # planNotifications: função pura que decide o que agendar
+    scheduler.ts         # rescheduleAll, permissão, handler (expo-notifications)
   components/            # base visual (ver "Design") e FloatingTabBar
     form/                # Field, TextField, OptionGrid, Stepper, DateTimeField, SwitchRow, FieldInput
   hooks/useFocusQuery.ts # carrega dados quando a tela ganha foco
@@ -80,7 +85,7 @@ src/
   theme/                 # tokens: cores, tons, espaçamentos, raios, fontes, tipografia
 ```
 
-`@/` é alias para `src/` (ex.: `import { Surface } from '@/components/Surface'`). Ainda não existe, e entra na etapa 6: `notifications/`.
+`@/` é alias para `src/` (ex.: `import { Surface } from '@/components/Surface'`).
 
 ## Design
 
@@ -142,7 +147,7 @@ Cada doença é um objeto `ConditionDefinition` em código:
 |---|---|
 | `user_conditions` | `condition_id` TEXT PK, `active`, `added_at`. A `rcu` é inserida na primeira migração. |
 | `medications` | `id`, `condition_id` (opcional), `name`, `dose` (texto livre), `form` (tablet, suppository, enema, injection, infusion, other), `notes`, `status` (active, paused, archived), `start_date`, `end_date` (opcional), `created_at`. |
-| `medication_schedules` | `id`, `medication_id`, `frequency` (daily ou interval), `interval_days` (só para interval, ex.: 14 ou 56), `time_of_day` ("08:00"), `notification_id`, `starts_on` e `ends_on` (validade do horário, migração 2). |
+| `medication_schedules` | `id`, `medication_id`, `frequency` (daily ou interval), `interval_days` (só para interval, ex.: 14 ou 56), `time_of_day` ("08:00"), `notification_id` (não usado: os ids de notificação são calculados), `starts_on` e `ends_on` (validade do horário, migração 2). |
 | `dose_logs` | `id`, `schedule_id`, `scheduled_for`, `status` (taken ou skipped), `taken_at`. `UNIQUE(schedule_id, scheduled_for)`. |
 | `diary_entries` | `id`, `condition_id`, `date`, `values_json` (validado pelo zod da definição), `notes`. `UNIQUE(condition_id, date)`: um registro por dia, e salvar de novo atualiza o mesmo. Consultas usam `json_extract`. |
 | `episodes` | `id`, `condition_id`, `start_date`, `end_date` (NULL = em andamento), `notes`. |
@@ -153,13 +158,16 @@ No banco as colunas são snake_case; os tipos em `src/domain/types.ts` são came
 
 ## Notificações
 
-- Todas são locais. Não existe servidor de push.
-- `rescheduleAll()` cancela tudo e agenda de novo a partir do banco. Chame na abertura do app e depois de qualquer mudança.
-- Remédio diário: gatilho `daily` (hora e minuto). Guarde o id em `medication_schedules.notification_id`.
-- Remédio a cada N dias: agende só as ocorrências dos próximos 30 dias (o iOS aceita no máximo 64 notificações pendentes por app).
-- Consultas: dois gatilhos de data, 1 dia antes e 2 horas antes.
-- Peça a permissão ao cadastrar o primeiro remédio, explicando o motivo. Se ela for negada, mostre um aviso com `Linking.openSettings()`.
-- O Expo Go tem limitações com notificações: teste em build de desenvolvimento.
+Todas são locais (expo-notifications), sem servidor de push. O banco é a única fonte de verdade.
+
+- **Só gatilhos de data única (`DATE`)**, nunca `DAILY`: um gatilho que se repete não sabe de pausa, término, horário encerrado nem de dose já marcada, e não permite cancelar uma ocorrência só.
+- **`planNotifications` (`src/notifications/plan.ts`) é pura e testada:** percorre os próximos 30 dias com `dosesForDate` (a mesma fonte da tela Hoje), pula doses já marcadas e passadas, soma os avisos de consulta (1 dia e 2 horas antes) e ordena por data.
+- **Orçamento:** o iOS guarda até 64 notificações pendentes; agendamos no máximo 60. Se estourar, as mais próximas ficam e a última vaga vira "Seus lembretes estão acabando, abra o app".
+- **Identificadores calculados:** `dose:<scheduleId>@<scheduledFor>`, `appt:<id>:1d`, `appt:<id>:2h`, `renew`. Não guarde ids no banco.
+- **`rescheduleAll(db)`** cancela tudo e agenda o plano, numa fila para chamadas seguidas não se atropelarem. Chame depois de **qualquer** gravação em remédios, doses ou consultas, e ele também roda ao abrir o app e ao voltar ao primeiro plano (`NotificationsBridge` em `app/_layout.tsx`), o que avança a janela.
+- **Permissão:** `askForRemindersIfNeeded()` explica o motivo antes do pedido do sistema, ao salvar remédio ou consulta com lembrete. Negada, a tela Hoje mostra um aviso com botão para `Linking.openSettings()`.
+- **Toque na notificação** abre `data.url` (Hoje ou a consulta).
+- **Onde testar:** notificações locais funcionam no Expo Go (a restrição do Expo Go é push no Android), mas lá a permissão e o nome exibido são os do Expo Go. Valide o comportamento final num build de desenvolvimento. Na web, o módulo não faz nada.
 
 ## Telas
 
@@ -172,7 +180,8 @@ No banco as colunas são snake_case; os tipos em `src/domain/types.ts` são came
 | Remédios | `/meds/form` | Modal de cadastro; com `?id=` edita |
 | Diário | `/(tabs)/diary` | Lista de dias, crises destacadas, adesão de 7 e 30 dias |
 | Consultas | `/(tabs)/appointments` | Consultas próximas e passadas |
-| Consultas | `/appointments/[id]` | Dados, lembretes e perguntas para o médico |
+| Consultas | `/appointments/[id]` | Dados, lembretes, perguntas e respostas, editar e apagar |
+| Consultas | `/appointments/form` | Modal de cadastro; com `?id=` edita |
 
 A tela Hoje é a prioridade: o usuário abre o app, marca o remédio e registra o dia sem trocar de aba.
 

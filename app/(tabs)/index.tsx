@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { Button } from '@/components/Button';
@@ -30,6 +31,12 @@ import { capitalizeFirst } from '@/domain/format';
 import { appointmentTypeLabels } from '@/domain/labels';
 import type { ScheduledDose } from '@/domain/types';
 import { useFocusQuery } from '@/hooks/useFocusQuery';
+import {
+  askForRemindersIfNeeded,
+  getPermissionState,
+  rescheduleAll,
+  type PermissionState,
+} from '@/notifications/scheduler';
 import { countOpenQuestions, getNextAppointment } from '@/repositories/appointments';
 import { getPrimaryCondition } from '@/repositories/conditions';
 import { getDiaryEntry, listEpisodes } from '@/repositories/diary';
@@ -60,9 +67,28 @@ async function loadToday(db: Db) {
 export default function TodayScreen() {
   const db = useDb();
   const { data, reload } = useFocusQuery(loadToday);
+  const [permission, setPermission] = useState<PermissionState>('granted');
+
+  useFocusEffect(
+    useCallback(() => {
+      getPermissionState().then(setPermission);
+    }, []),
+  );
 
   if (!data) return <Screen tab>{null}</Screen>;
   const { today, condition, doses, entry: todayEntry, openEpisode, nextAppointment, nextQuestions } = data;
+
+  // Toda gravação reagenda os lembretes: uma dose marcada não deve mais tocar.
+  async function afterWrite() {
+    await rescheduleAll(db);
+    reload();
+  }
+
+  async function enableReminders() {
+    const state = await askForRemindersIfNeeded();
+    setPermission(state);
+    if (state === 'granted') await rescheduleAll(db);
+  }
 
   async function markTaken(dose: ScheduledDose) {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -72,7 +98,7 @@ export default function TodayScreen() {
       status: 'taken',
       takenAt: toDateTimeKey(new Date()),
     });
-    reload();
+    afterWrite();
   }
 
   // Toque longo numa dose: pular, ou desfazer uma marcação feita por engano.
@@ -85,7 +111,7 @@ export default function TodayScreen() {
           text: 'Pular dose',
           onPress: async () => {
             await logDose(db, { scheduleId: dose.scheduleId, scheduledFor: dose.scheduledFor, status: 'skipped', takenAt: null });
-            reload();
+            afterWrite();
           },
         },
       ]);
@@ -98,7 +124,7 @@ export default function TodayScreen() {
         style: 'destructive',
         onPress: async () => {
           await clearDoseLog(db, dose.scheduleId, dose.scheduledFor);
-          reload();
+          afterWrite();
         },
       },
     ]);
@@ -111,7 +137,7 @@ export default function TodayScreen() {
         text: 'Carregar exemplo',
         onPress: async () => {
           await loadExampleData(db);
-          reload();
+          afterWrite();
         },
       },
       {
@@ -119,7 +145,7 @@ export default function TodayScreen() {
         style: 'destructive',
         onPress: async () => {
           await clearAllData(db);
-          reload();
+          afterWrite();
         },
       },
       { text: 'Cancelar', style: 'cancel' },
@@ -129,6 +155,26 @@ export default function TodayScreen() {
   return (
     <Screen tab>
       <Hero date={today} doses={doses} onLongPress={__DEV__ ? openDevMenu : undefined} />
+
+      {doses.length > 0 && permission !== 'granted' && (
+        <View style={styles.remindersOff}>
+          <Ionicons name="notifications-off" size={20} color={colors.amber} />
+          <View style={styles.flex}>
+            <Text variant="bodyStrong">Lembretes desligados</Text>
+            <Text variant="caption">
+              {permission === 'denied'
+                ? 'O app não pode avisar na hora das doses. Ative as notificações do App RCU nos Ajustes do iPhone.'
+                : 'Ative para ser avisado na hora de cada dose e antes das consultas.'}
+            </Text>
+          </View>
+          <Button
+            title={permission === 'denied' ? 'Ajustes' : 'Ativar'}
+            size="sm"
+            variant="soft"
+            onPress={permission === 'denied' ? () => Linking.openSettings() : enableReminders}
+          />
+        </View>
+      )}
 
       <SectionHeader title="Doses de hoje" />
       {doses.length === 0 ? (
@@ -400,6 +446,14 @@ const styles = StyleSheet.create({
   },
   doseDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
 
+  remindersOff: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.amberSoft,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
   episode: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -32,6 +32,7 @@ import {
 } from '@/domain/medicationForm';
 import { isScheduleCurrent } from '@/domain/schedule';
 import type { MedicationForm } from '@/domain/types';
+import { askForRemindersIfNeeded, rescheduleAll } from '@/notifications/scheduler';
 import { getPrimaryCondition } from '@/repositories/conditions';
 import { createMedication, getMedication, listSchedules, updateMedication } from '@/repositories/medications';
 import { colors, fonts, spacing } from '@/theme';
@@ -91,6 +92,8 @@ export default function MedicationFormScreen() {
         await updateMedication(db, id, draft, today);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await askForRemindersIfNeeded();
+      await rescheduleAll(db);
       router.back();
     },
     () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),

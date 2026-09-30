@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { Chip } from '@/components/Chip';
 import { DateTile } from '@/components/DateTile';
 import { EmptyState } from '@/components/EmptyState';
+import { IconButton } from '@/components/IconButton';
 import { LargeTitle } from '@/components/LargeTitle';
 import { ListRow } from '@/components/ListRow';
 import { Screen } from '@/components/Screen';
@@ -43,7 +44,13 @@ export default function AppointmentsScreen() {
 
   return (
     <Screen tab>
-      <LargeTitle title="Consultas" subtitle="Consultas, exames e infusões" />
+      <LargeTitle
+        title="Consultas"
+        subtitle="Consultas, exames e infusões"
+        accessory={
+          <IconButton icon="add" accessibilityLabel="Agendar consulta" onPress={() => router.push('/appointments/form')} />
+        }
+      />
 
       <SegmentedControl
         value={when}
@@ -57,7 +64,7 @@ export default function AppointmentsScreen() {
       {!data ? null : items.length === 0 ? (
         <EmptyState
           icon="calendar-clear-outline"
-          message={when === 'upcoming' ? 'Nenhuma consulta agendada.' : 'Nenhuma consulta passada.'}
+          message={when === 'upcoming' ? 'Nenhuma consulta agendada. Toque em + para guardar a próxima.' : 'Nenhuma consulta passada.'}
         />
       ) : (
         <Surface padded={false}>

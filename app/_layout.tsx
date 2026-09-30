@@ -4,16 +4,20 @@ import { InstrumentSans_400Regular } from '@expo-google-fonts/instrument-sans/40
 import { InstrumentSans_500Medium } from '@expo-google-fonts/instrument-sans/500Medium';
 import { InstrumentSans_600SemiBold } from '@expo-google-fonts/instrument-sans/600SemiBold';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
 
-import { DATABASE_NAME, initDatabase } from '@/db/client';
+import { DATABASE_NAME, initDatabase, useDb } from '@/db/client';
+import { configureNotifications, rescheduleAll } from '@/notifications/scheduler';
 import { colors, fonts } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
+configureNotifications();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -30,6 +34,7 @@ export default function RootLayout() {
   return (
     <SQLiteProvider databaseName={DATABASE_NAME} onInit={initDatabase}>
       <HideSplashWhenReady />
+      {Platform.OS !== 'web' && <NotificationsBridge />}
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -46,6 +51,7 @@ export default function RootLayout() {
         <Stack.Screen name="meds/form" options={{ presentation: 'modal', title: 'Remédio' }} />
         <Stack.Screen name="diary/[date]" options={{ title: 'Registro do dia' }} />
         <Stack.Screen name="appointments/[id]" options={{ title: '' }} />
+        <Stack.Screen name="appointments/form" options={{ presentation: 'modal', title: 'Consulta' }} />
       </Stack>
     </SQLiteProvider>
   );
@@ -56,5 +62,32 @@ function HideSplashWhenReady() {
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
+  return null;
+}
+
+/**
+ * Mantém os lembretes em dia: reagenda ao abrir o app e sempre que ele volta ao primeiro plano
+ * (a janela de lembretes avança, e a permissão pode ter mudado nos Ajustes).
+ * Tocar num lembrete abre a tela indicada em `data.url`.
+ */
+function NotificationsBridge() {
+  const db = useDb();
+  const response = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    rescheduleAll(db);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') rescheduleAll(db);
+    });
+    return () => subscription.remove();
+  }, [db]);
+
+  useEffect(() => {
+    if (!response || response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const url = response.notification.request.content.data?.url;
+    if (typeof url === 'string' && url !== '/') router.push(url as never);
+    Notifications.clearLastNotificationResponse();
+  }, [response]);
+
   return null;
 }

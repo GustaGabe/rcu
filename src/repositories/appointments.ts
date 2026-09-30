@@ -132,3 +132,37 @@ export async function createQuestion(db: Db, input: QuestionInput): Promise<numb
 export async function setQuestionAsked(db: Db, id: number, asked: boolean): Promise<void> {
   await db.runAsync('UPDATE doctor_questions SET asked = ? WHERE id = ?', [asked ? 1 : 0, id]);
 }
+
+export async function updateAppointment(db: Db, id: number, input: AppointmentInput): Promise<void> {
+  await db.runAsync(
+    `UPDATE appointments SET condition_id = ?, datetime = ?, type = ?, professional = ?, location = ?, notes = ?,
+       remind_1d = ?, remind_2h = ? WHERE id = ?`,
+    [
+      input.conditionId,
+      input.datetime,
+      input.type,
+      input.professional,
+      input.location,
+      input.notes,
+      input.remind1d ? 1 : 0,
+      input.remind2h ? 1 : 0,
+      id,
+    ],
+  );
+}
+
+/** Apaga a consulta e as perguntas dela. */
+export async function deleteAppointment(db: Db, id: number): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM doctor_questions WHERE appointment_id = ?', [id]);
+    await db.runAsync('DELETE FROM appointments WHERE id = ?', [id]);
+  });
+}
+
+export async function updateQuestion(db: Db, id: number, question: string, answer: string | null): Promise<void> {
+  await db.runAsync('UPDATE doctor_questions SET question = ?, answer = ? WHERE id = ?', [question, answer, id]);
+}
+
+export async function deleteQuestion(db: Db, id: number): Promise<void> {
+  await db.runAsync('DELETE FROM doctor_questions WHERE id = ?', [id]);
+}

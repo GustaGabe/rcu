@@ -5,9 +5,14 @@ import {
   countOpenQuestions,
   createAppointment,
   createQuestion,
+  deleteAppointment,
+  deleteQuestion,
+  getAppointment,
   getNextAppointment,
   listQuestions,
   setQuestionAsked,
+  updateAppointment,
+  updateQuestion,
 } from '../appointments';
 import { getPrimaryCondition } from '../conditions';
 import {
@@ -220,6 +225,38 @@ describe('appointments', () => {
     await setQuestionAsked(db, q1, true);
     expect(await countOpenQuestions(db)).toEqual({ [next]: 1 });
     expect((await listQuestions(db, next)).map((q) => q.asked)).toEqual([true, false]);
+    db.close();
+  });
+});
+
+describe('appointments CRUD', () => {
+  it('edita, responde perguntas e apaga a consulta com as perguntas', async () => {
+    const db = await createMigratedDb();
+    const input = {
+      conditionId: 'rcu',
+      datetime: '2026-10-05T14:30:00',
+      type: 'consultation' as const,
+      professional: 'Dra. A',
+      location: null,
+      notes: null,
+      remind1d: true,
+      remind2h: true,
+    };
+    const id = await createAppointment(db, input);
+    await updateAppointment(db, id, { ...input, type: 'exam', remind2h: false, location: 'Lab' });
+    expect(await getAppointment(db, id)).toMatchObject({ type: 'exam', remind2h: false, location: 'Lab' });
+
+    const q = await createQuestion(db, { appointmentId: id, question: 'A?', answer: null, asked: false });
+    const other = await createQuestion(db, { appointmentId: id, question: 'B?', answer: null, asked: false });
+    await updateQuestion(db, q, 'A, de novo?', 'Sim.');
+    await deleteQuestion(db, other);
+    expect(await listQuestions(db, id)).toEqual([
+      { id: q, appointmentId: id, question: 'A, de novo?', answer: 'Sim.', asked: false },
+    ]);
+
+    await deleteAppointment(db, id);
+    expect(await getAppointment(db, id)).toBeNull();
+    expect(await db.getAllAsync('SELECT * FROM doctor_questions')).toEqual([]);
     db.close();
   });
 });

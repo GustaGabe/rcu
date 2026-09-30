@@ -19,6 +19,7 @@ import { medicationFormLabels, medicationStatusSingular } from '@/domain/labels'
 import { isScheduleCurrent } from '@/domain/schedule';
 import type { MedicationStatus } from '@/domain/types';
 import { useFocusQuery } from '@/hooks/useFocusQuery';
+import { rescheduleAll } from '@/notifications/scheduler';
 import { getMedication, listSchedules, setMedicationStatus } from '@/repositories/medications';
 import { colors, fonts, radius, spacing, type Tone } from '@/theme';
 
@@ -61,6 +62,7 @@ function MedicationDetail({ id }: { id: number }) {
   async function changeStatus(status: MedicationStatus) {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await setMedicationStatus(db, medId, status);
+    await rescheduleAll(db);
     reload();
   }
 
