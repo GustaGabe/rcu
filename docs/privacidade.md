@@ -51,4 +51,4 @@ Se a forma de tratar os dados mudar (por exemplo, com uma função de backup na 
 
 ## Contato
 
-Dúvidas sobre esta política: jeffersonluizmmelo750@gmail.com
+Dúvidas sobre esta política: [e-mail de contato — preencher antes de publicar]
