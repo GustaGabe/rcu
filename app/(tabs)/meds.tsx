@@ -13,8 +13,10 @@ import { SegmentedControl } from '@/components/SegmentedControl';
 import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
 import type { Db } from '@/db/types';
+import { todayKey } from '@/domain/dates';
 import { describeSchedules } from '@/domain/format';
 import { medicationStatusLabels } from '@/domain/labels';
+import { isScheduleCurrent } from '@/domain/schedule';
 import type { MedicationStatus } from '@/domain/types';
 import { useFocusQuery } from '@/hooks/useFocusQuery';
 import { listMedications, listSchedules } from '@/repositories/medications';
@@ -29,8 +31,9 @@ const emptyMessages: Record<MedicationStatus, string> = {
 };
 
 async function loadMeds(db: Db) {
+  const today = todayKey();
   const [medications, schedules] = await Promise.all([listMedications(db), listSchedules(db)]);
-  return { medications, schedules };
+  return { medications, schedules: schedules.filter((s) => isScheduleCurrent(s, today)) };
 }
 
 export default function MedsScreen() {
@@ -50,7 +53,7 @@ export default function MedsScreen() {
           <IconButton
             icon="add"
             accessibilityLabel="Cadastrar remédio"
-            onPress={() => router.push({ pathname: '/meds/[id]', params: { id: 'new' } })}
+            onPress={() => router.push('/meds/form')}
           />
         }
       />

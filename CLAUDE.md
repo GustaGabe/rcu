@@ -52,7 +52,8 @@ app/
     meds.tsx
     diary.tsx
     appointments.tsx
-  meds/[id].tsx          # id = "new" para criar
+  meds/[id].tsx          # detalhe: editar, pausar, reativar, arquivar
+  meds/form.tsx          # modal de cadastro (sem id) e edição (?id=)
   diary/[date].tsx
   appointments/[id].tsx
 src/
@@ -66,12 +67,14 @@ src/
     types.ts             # tipos do modelo de dados (camelCase)
     labels.ts            # rótulos pt-BR dos enums
     dates.ts             # chaves ISO e formatação pt-BR
+    medicationForm.ts    # schema zod do M1 e conversões formulário ↔ MedicationDraft
     format.ts            # descrição de horários, dias de crise, percentuais
     schedule.ts          # dosesForDate(medications, schedules, date), applyDoseLogs
     adherence.ts         # adherenceRatio: fração das doses previstas que foram tomadas
     diarySchema.ts       # buildDiarySchema(def) gera o zod a partir da definição
   notifications/scheduler.ts   # rescheduleAll()
   components/            # base visual (ver "Design") e FloatingTabBar
+    form/                # Field, TextField, OptionGrid, Stepper, DateTimeField, SwitchRow
   hooks/useFocusQuery.ts # carrega dados quando a tela ganha foco
   testing/testDb.ts      # Db sobre better-sqlite3 em memória, só para testes
   theme/                 # tokens: cores, tons, espaçamentos, raios, fontes, tipografia
@@ -95,6 +98,8 @@ O visual parte do roxo, cor de conscientização das doenças inflamatórias int
 
 - **A UI nunca acessa o banco.** Telas não escrevem SQL: chamam funções de `src/repositories/*`, que recebem o `Db` como primeiro argumento e convertem snake_case ↔ camelCase.
 - **Carregar dados numa tela:** uma função `load(db)` que junta as consultas (no escopo do módulo, ou em `useCallback` se depender de parâmetro da rota) passada a `useFocusQuery`. Ela roda de novo quando a tela ganha foco; depois de gravar, chame `reload()`. `useDb()` dá o banco para as gravações.
+- **Editar horários não reescreve o histórico.** `updateMedication` mantém os horários iguais; um horário removido que já tem doses marcadas é encerrado ontem (`ends_on`), e um sem marcações é apagado. Horários novos num remédio já iniciado valem a partir de hoje (`starts_on`). Remédios nunca são apagados: são pausados ou arquivados.
+- **Formulários:** react-hook-form + zod, com schema e conversões puras em `src/domain` (ex.: `medicationForm.ts`) e testadas. Use `useWatch`, não `watch` (o lint do React Compiler reclama). Mensagens de erro em pt-BR dizem o que fazer.
 - **A doença do diário** vem de `getPrimaryCondition(db)` (primeira de `user_conditions`), nunca de um id fixo.
 - **Nada específico de doença fora de `src/conditions/`.** Telas, repositórios e validação leem a `ConditionDefinition`. Se aparecer `bristol` ou `crise` escrito à mão numa tela, está errado.
 - **Doses não são gravadas com antecedência.** A tela Hoje calcula as doses do dia com `dosesForDate(schedules, date)` e cruza com `dose_logs`. Só vira linha o que o usuário marcou (`taken` ou `skipped`).
@@ -136,7 +141,7 @@ Cada doença é um objeto `ConditionDefinition` em código:
 |---|---|
 | `user_conditions` | `condition_id` TEXT PK, `active`, `added_at`. A `rcu` é inserida na primeira migração. |
 | `medications` | `id`, `condition_id` (opcional), `name`, `dose` (texto livre), `form` (tablet, suppository, enema, injection, infusion, other), `notes`, `status` (active, paused, archived), `start_date`, `end_date` (opcional), `created_at`. |
-| `medication_schedules` | `id`, `medication_id`, `frequency` (daily ou interval), `interval_days` (só para interval, ex.: 14 ou 56), `time_of_day` ("08:00"), `notification_id`. |
+| `medication_schedules` | `id`, `medication_id`, `frequency` (daily ou interval), `interval_days` (só para interval, ex.: 14 ou 56), `time_of_day` ("08:00"), `notification_id`, `starts_on` e `ends_on` (validade do horário, migração 2). |
 | `dose_logs` | `id`, `schedule_id`, `scheduled_for`, `status` (taken ou skipped), `taken_at`. `UNIQUE(schedule_id, scheduled_for)`. |
 | `diary_entries` | `id`, `condition_id`, `date`, `values_json` (validado pelo zod da definição), `notes`. `UNIQUE(condition_id, date)`: um registro por dia, e salvar de novo atualiza o mesmo. Consultas usam `json_extract`. |
 | `episodes` | `id`, `condition_id`, `start_date`, `end_date` (NULL = em andamento), `notes`. |
@@ -162,7 +167,8 @@ No banco as colunas são snake_case; os tipos em `src/domain/types.ts` são came
 | Hoje | `/(tabs)/index` | Doses do dia com botão "tomei", atalho para o registro do dia, próxima consulta |
 | Hoje | `/diary/[date]` | Formulário do dia (gerado pela definição) e botão de crise |
 | Remédios | `/(tabs)/meds` | Remédios ativos, pausados e arquivados |
-| Remédios | `/meds/[id]` | Cadastro e edição |
+| Remédios | `/meds/[id]` | Detalhe com editar, pausar, reativar e arquivar |
+| Remédios | `/meds/form` | Modal de cadastro; com `?id=` edita |
 | Diário | `/(tabs)/diary` | Lista de dias, crises destacadas, adesão de 7 e 30 dias |
 | Consultas | `/(tabs)/appointments` | Consultas próximas e passadas |
 | Consultas | `/appointments/[id]` | Dados, lembretes e perguntas para o médico |

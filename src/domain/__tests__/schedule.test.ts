@@ -25,6 +25,8 @@ function schedule(overrides: Partial<MedicationSchedule>): MedicationSchedule {
     intervalDays: null,
     timeOfDay: '08:00',
     notificationId: null,
+    startsOn: null,
+    endsOn: null,
     ...overrides,
   };
 }
@@ -85,5 +87,15 @@ describe('applyDoseLogs', () => {
     ]);
     expect(result[0]).toMatchObject({ status: 'taken', takenAt: '2026-09-30T08:12:00' });
     expect(result[1].status).toBe('pending');
+  });
+});
+
+describe('validade do horário', () => {
+  it('respeita startsOn e endsOn do horário', () => {
+    const s = [schedule({ startsOn: '2026-09-10', endsOn: '2026-09-20' })];
+    expect(dosesForDate([med({})], s, '2026-09-09')).toHaveLength(0);
+    expect(dosesForDate([med({})], s, '2026-09-10')).toHaveLength(1);
+    expect(dosesForDate([med({})], s, '2026-09-20')).toHaveLength(1);
+    expect(dosesForDate([med({})], s, '2026-09-21')).toHaveLength(0);
   });
 });

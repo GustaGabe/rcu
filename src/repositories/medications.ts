@@ -1,10 +1,16 @@
+import { parseISO, subDays } from 'date-fns';
+
 import type { Db } from '@/db/types';
+import { toDateKey } from '@/domain/dates';
+import { isScheduleCurrent, sameSchedule } from '@/domain/schedule';
 import type {
   ISODate,
   Medication,
+  MedicationDraft,
   MedicationForm,
   MedicationSchedule,
   MedicationStatus,
+  ScheduleDraft,
   ScheduleFrequency,
 } from '@/domain/types';
 
@@ -28,6 +34,8 @@ interface ScheduleRow {
   interval_days: number | null;
   time_of_day: string;
   notification_id: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
 }
 
 function toMedication(row: MedicationRow): Medication {
@@ -53,6 +61,8 @@ function toSchedule(row: ScheduleRow): MedicationSchedule {
     intervalDays: row.interval_days,
     timeOfDay: row.time_of_day,
     notificationId: row.notification_id,
+    startsOn: row.starts_on,
+    endsOn: row.ends_on,
   };
 }
 
@@ -78,22 +88,9 @@ export async function listSchedules(db: Db, medicationId?: number): Promise<Medi
   return rows.map(toSchedule);
 }
 
-export interface NewSchedule {
-  frequency: ScheduleFrequency;
-  intervalDays: number | null;
-  timeOfDay: string;
-}
-
-export interface NewMedication {
+export interface NewMedication extends MedicationDraft {
   conditionId: string | null;
-  name: string;
-  dose: string;
-  form: MedicationForm;
-  notes: string | null;
   status?: MedicationStatus;
-  startDate: ISODate;
-  endDate: ISODate | null;
-  schedules: NewSchedule[];
 }
 
 /** Grava o remédio e seus horários numa transação. Devolve o id criado. */
@@ -115,12 +112,59 @@ export async function createMedication(db: Db, input: NewMedication): Promise<nu
       ],
     );
     id = result.lastInsertRowId;
-    for (const s of input.schedules) {
-      await db.runAsync(
-        'INSERT INTO medication_schedules (medication_id, frequency, interval_days, time_of_day) VALUES (?, ?, ?, ?)',
-        [id, s.frequency, s.frequency === 'interval' ? s.intervalDays : null, s.timeOfDay],
-      );
-    }
+    for (const s of input.schedules) await insertSchedule(db, id, s, null);
   });
   return id;
+}
+
+/**
+ * Atualiza o remédio preservando o histórico de doses:
+ * horários iguais continuam; removidos com doses marcadas são encerrados ontem
+ * (os sem marcação são apagados); novos valem a partir de hoje se o remédio já começou.
+ */
+export async function updateMedication(db: Db, id: number, draft: MedicationDraft, today: ISODate): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'UPDATE medications SET name = ?, dose = ?, form = ?, notes = ?, start_date = ?, end_date = ? WHERE id = ?',
+      [draft.name, draft.dose, draft.form, draft.notes, draft.startDate, draft.endDate, id],
+    );
+
+    const current = (await listSchedules(db, id)).filter((s) => isScheduleCurrent(s, today));
+    const pending = [...draft.schedules];
+
+    for (const schedule of current) {
+      const match = pending.findIndex((d) => sameSchedule(d, schedule));
+      if (match >= 0) {
+        pending.splice(match, 1);
+        continue;
+      }
+      const logged = await db.getFirstAsync<{ total: number }>(
+        'SELECT COUNT(*) AS total FROM dose_logs WHERE schedule_id = ?',
+        [schedule.id],
+      );
+      if (logged && logged.total > 0) {
+        await db.runAsync('UPDATE medication_schedules SET ends_on = ? WHERE id = ?', [
+          toDateKey(subDays(parseISO(today), 1)),
+          schedule.id,
+        ]);
+      } else {
+        await db.runAsync('DELETE FROM medication_schedules WHERE id = ?', [schedule.id]);
+      }
+    }
+
+    const startsOn = draft.startDate < today ? today : null;
+    for (const s of pending) await insertSchedule(db, id, s, startsOn);
+  });
+}
+
+export async function setMedicationStatus(db: Db, id: number, status: MedicationStatus): Promise<void> {
+  await db.runAsync('UPDATE medications SET status = ? WHERE id = ?', [status, id]);
+}
+
+async function insertSchedule(db: Db, medicationId: number, s: ScheduleDraft, startsOn: ISODate | null) {
+  await db.runAsync(
+    `INSERT INTO medication_schedules (medication_id, frequency, interval_days, time_of_day, starts_on)
+     VALUES (?, ?, ?, ?, ?)`,
+    [medicationId, s.frequency, s.frequency === 'interval' ? s.intervalDays : null, s.timeOfDay, startsOn],
+  );
 }

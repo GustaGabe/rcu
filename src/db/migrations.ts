@@ -87,6 +87,12 @@ const migrations: string[] = [
     asked          INTEGER NOT NULL DEFAULT 0
   );
   `,
+
+  // 2: validade de cada horário, para editar horários sem reescrever o histórico
+  `
+  ALTER TABLE medication_schedules ADD COLUMN starts_on TEXT;
+  ALTER TABLE medication_schedules ADD COLUMN ends_on TEXT;
+  `,
 ];
 
 export const LATEST_VERSION = migrations.length;

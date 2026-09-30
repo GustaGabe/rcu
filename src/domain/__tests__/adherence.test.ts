@@ -15,8 +15,8 @@ const medication: Medication = {
 };
 
 const schedules: MedicationSchedule[] = [
-  { id: 1, medicationId: 1, frequency: 'daily', intervalDays: null, timeOfDay: '08:00', notificationId: null },
-  { id: 2, medicationId: 1, frequency: 'daily', intervalDays: null, timeOfDay: '20:00', notificationId: null },
+  { id: 1, medicationId: 1, frequency: 'daily', intervalDays: null, timeOfDay: '08:00', notificationId: null, startsOn: null, endsOn: null },
+  { id: 2, medicationId: 1, frequency: 'daily', intervalDays: null, timeOfDay: '20:00', notificationId: null, startsOn: null, endsOn: null },
 ];
 
 const taken = (scheduleId: number, scheduledFor: string): DoseLog => ({

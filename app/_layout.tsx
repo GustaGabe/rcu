@@ -43,6 +43,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="meds/[id]" options={{ title: '' }} />
+        <Stack.Screen name="meds/form" options={{ presentation: 'modal', title: 'Remédio' }} />
         <Stack.Screen name="diary/[date]" options={{ title: 'Registro do dia' }} />
         <Stack.Screen name="appointments/[id]" options={{ title: '' }} />
       </Stack>

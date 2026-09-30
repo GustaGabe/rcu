@@ -11,8 +11,15 @@ import {
 } from '../appointments';
 import { getPrimaryCondition } from '../conditions';
 import { getDiaryEntry, getPreviousDiaryEntry, listDiaryEntries, saveDiaryEntry } from '../diary';
-import { getAdherence, getDosesForDate, logDose } from '../doses';
-import { createMedication, getMedication, listMedications, listSchedules } from '../medications';
+import { clearDoseLog, getAdherence, getDosesForDate, logDose } from '../doses';
+import {
+  createMedication,
+  getMedication,
+  listMedications,
+  listSchedules,
+  setMedicationStatus,
+  updateMedication,
+} from '../medications';
 
 async function setup() {
   const db = await createMigratedDb();
@@ -48,7 +55,84 @@ describe('medications', () => {
   });
 });
 
+describe('updateMedication', () => {
+  const draft = {
+    name: 'Mesalazina MMX',
+    dose: '2 comprimidos de 1,2 g',
+    form: 'tablet' as const,
+    notes: null,
+    startDate: '2026-09-01',
+    endDate: null,
+  };
+
+  it('mantém horários iguais, encerra removidos com histórico e apaga os sem histórico', async () => {
+    const { db, id } = await setup();
+    const [morning, evening] = await listSchedules(db, id);
+    await logDose(db, { scheduleId: evening.id, scheduledFor: '2026-09-29T20:00:00', status: 'taken', takenAt: null });
+
+    await updateMedication(
+      db,
+      id,
+      {
+        ...draft,
+        schedules: [
+          { frequency: 'daily', intervalDays: null, timeOfDay: '08:00' },
+          { frequency: 'daily', intervalDays: null, timeOfDay: '21:00' },
+        ],
+      },
+      '2026-09-30',
+    );
+
+    expect(await getMedication(db, id)).toMatchObject({ name: 'Mesalazina MMX', dose: '2 comprimidos de 1,2 g' });
+    const schedules = await listSchedules(db, id);
+    expect(schedules.find((s) => s.id === morning.id)).toMatchObject({ timeOfDay: '08:00', endsOn: null });
+    expect(schedules.find((s) => s.id === evening.id)).toMatchObject({ endsOn: '2026-09-29' });
+    expect(schedules.find((s) => s.timeOfDay === '21:00')).toMatchObject({ startsOn: '2026-09-30' });
+
+    // O histórico de ontem continua de pé; hoje vale o horário novo.
+    expect((await getDosesForDate(db, '2026-09-29')).map((d) => [d.scheduledFor.slice(11, 16), d.status])).toEqual([
+      ['08:00', 'pending'],
+      ['20:00', 'taken'],
+    ]);
+    expect((await getDosesForDate(db, '2026-09-30')).map((d) => d.scheduledFor.slice(11, 16))).toEqual([
+      '08:00',
+      '21:00',
+    ]);
+    db.close();
+  });
+
+  it('apaga horário removido que nunca teve dose marcada', async () => {
+    const { db, id } = await setup();
+    await updateMedication(
+      db,
+      id,
+      { ...draft, schedules: [{ frequency: 'daily', intervalDays: null, timeOfDay: '08:00' }] },
+      '2026-09-30',
+    );
+    expect((await listSchedules(db, id)).map((s) => s.timeOfDay)).toEqual(['08:00']);
+    db.close();
+  });
+
+  it('pausa e reativa sem perder dados', async () => {
+    const { db, id } = await setup();
+    await setMedicationStatus(db, id, 'paused');
+    expect(await getDosesForDate(db, '2026-09-30')).toHaveLength(0);
+    await setMedicationStatus(db, id, 'active');
+    expect(await getDosesForDate(db, '2026-09-30')).toHaveLength(2);
+    db.close();
+  });
+});
+
 describe('doses', () => {
+  it('desfaz uma marcação', async () => {
+    const { db } = await setup();
+    const [first] = await getDosesForDate(db, '2026-09-30');
+    await logDose(db, { scheduleId: first.scheduleId, scheduledFor: first.scheduledFor, status: 'skipped', takenAt: null });
+    await clearDoseLog(db, first.scheduleId, first.scheduledFor);
+    expect((await getDosesForDate(db, '2026-09-30'))[0].status).toBe('pending');
+    db.close();
+  });
+
   it('marca, remarca e cruza com as doses do dia', async () => {
     const { db } = await setup();
     const [first] = await getDosesForDate(db, '2026-09-30');

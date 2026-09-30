@@ -1,7 +1,9 @@
-import { useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
+import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
 import { IconBadge } from '@/components/IconBadge';
@@ -10,40 +12,39 @@ import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
-import { formatDateMedium } from '@/domain/dates';
-import { medicationFormLabels, medicationStatusSingular } from '@/domain/labels';
+import { useDb } from '@/db/client';
 import type { Db } from '@/db/types';
+import { formatDateMedium, todayKey } from '@/domain/dates';
+import { medicationFormLabels, medicationStatusSingular } from '@/domain/labels';
+import { isScheduleCurrent } from '@/domain/schedule';
 import type { MedicationStatus } from '@/domain/types';
 import { useFocusQuery } from '@/hooks/useFocusQuery';
-import { getMedication, listSchedules } from '@/repositories/medications';
+import { getMedication, listSchedules, setMedicationStatus } from '@/repositories/medications';
 import { colors, fonts, radius, spacing, type Tone } from '@/theme';
 
 const statusTones: Record<MedicationStatus, Tone> = { active: 'sage', paused: 'amber', archived: 'neutral' };
 
+const statusNotes: Partial<Record<MedicationStatus, string>> = {
+  paused: 'Pausado: as doses não aparecem na tela Hoje nem contam na adesão.',
+  archived: 'Arquivado: fora da lista de uso, com todo o histórico de doses guardado.',
+};
+
 export default function MedicationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-
-  if (id === 'new') {
-    return (
-      <Screen>
-        <Text variant="display">Novo remédio</Text>
-        <EmptyState icon="construct-outline" message="O cadastro de remédios chega na etapa 4." />
-      </Screen>
-    );
-  }
-
   return <MedicationDetail id={Number(id)} />;
 }
 
 function MedicationDetail({ id }: { id: number }) {
+  const db = useDb();
   const load = useCallback(
     async (db: Db) => {
+      const today = todayKey();
       const [med, schedules] = await Promise.all([getMedication(db, id), listSchedules(db, id)]);
-      return { med, schedules };
+      return { med, schedules: schedules.filter((s) => isScheduleCurrent(s, today)) };
     },
     [id],
   );
-  const { data } = useFocusQuery(load);
+  const { data, reload } = useFocusQuery(load);
   if (!data) return <Screen>{null}</Screen>;
 
   const { med, schedules: medSchedules } = data;
@@ -52,6 +53,25 @@ function MedicationDetail({ id }: { id: number }) {
       <Screen>
         <EmptyState icon="help-circle-outline" message="Este remédio não existe mais." />
       </Screen>
+    );
+  }
+  const medId = med.id;
+  const medName = med.name;
+
+  async function changeStatus(status: MedicationStatus) {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await setMedicationStatus(db, medId, status);
+    reload();
+  }
+
+  function confirmArchive() {
+    Alert.alert(
+      `Arquivar ${medName}?`,
+      'Ele sai da lista de remédios em uso e para de gerar doses. O histórico fica guardado e você pode reativar depois.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Arquivar', style: 'destructive', onPress: () => changeStatus('archived') },
+      ],
     );
   }
 
@@ -67,18 +87,17 @@ function MedicationDetail({ id }: { id: number }) {
           </View>
         </View>
       </View>
+      {statusNotes[med.status] && <Text variant="caption">{statusNotes[med.status]}</Text>}
 
       <SectionHeader title="Horários" />
       {medSchedules.length === 0 ? (
-        <EmptyState icon="time-outline" message="Nenhum horário cadastrado." />
+        <EmptyState icon="time-outline" message="Nenhum horário cadastrado. Toque em Editar para adicionar." />
       ) : (
         <View style={styles.times}>
           {medSchedules.map((s) => (
             <View key={s.id} style={styles.time}>
               <Text style={styles.timeValue}>{s.timeOfDay}</Text>
-              <Text variant="label">
-                {s.frequency === 'daily' ? 'todo dia' : `a cada ${s.intervalDays} dias`}
-              </Text>
+              <Text variant="label">{s.frequency === 'daily' ? 'todo dia' : `a cada ${s.intervalDays} dias`}</Text>
             </View>
           ))}
         </View>
@@ -98,7 +117,22 @@ function MedicationDetail({ id }: { id: number }) {
         </Surface>
       )}
 
-      <EmptyState icon="construct-outline" message="Editar, pausar e arquivar chegam na etapa 4." />
+      <View style={styles.actions}>
+        <Button
+          title="Editar"
+          icon="create-outline"
+          onPress={() => router.push({ pathname: '/meds/form', params: { id: String(med.id) } })}
+        />
+        {med.status === 'active' && (
+          <Button title="Pausar" variant="soft" icon="pause" onPress={() => changeStatus('paused')} />
+        )}
+        {med.status !== 'active' && (
+          <Button title="Reativar" variant="soft" icon="play" onPress={() => changeStatus('active')} />
+        )}
+        {med.status !== 'archived' && (
+          <Button title="Arquivar" variant="danger" icon="archive-outline" onPress={confirmArchive} />
+        )}
+      </View>
     </Screen>
   );
 }
@@ -118,4 +152,5 @@ const styles = StyleSheet.create({
   },
   timeValue: { fontFamily: fonts.display, fontSize: 28, lineHeight: 32, color: colors.ink },
   details: { paddingVertical: spacing.xs, gap: 0 },
+  actions: { gap: spacing.sm, marginTop: spacing.md },
 });

@@ -52,6 +52,11 @@ export async function logDose(db: Db, mark: DoseMark): Promise<void> {
   );
 }
 
+/** Desfaz a marcação: a dose volta a ficar pendente. */
+export async function clearDoseLog(db: Db, scheduleId: number, scheduledFor: ISODateTime): Promise<void> {
+  await db.runAsync('DELETE FROM dose_logs WHERE schedule_id = ? AND scheduled_for = ?', [scheduleId, scheduledFor]);
+}
+
 /** Doses do dia já cruzadas com o que foi marcado. */
 export async function getDosesForDate(db: Db, date: ISODate): Promise<ScheduledDose[]> {
   const [medications, schedules, logs] = await Promise.all([

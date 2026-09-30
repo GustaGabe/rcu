@@ -33,7 +33,7 @@ import { useFocusQuery } from '@/hooks/useFocusQuery';
 import { countOpenQuestions, getNextAppointment } from '@/repositories/appointments';
 import { getPrimaryCondition } from '@/repositories/conditions';
 import { getDiaryEntry, listEpisodes } from '@/repositories/diary';
-import { getDosesForDate, logDose } from '@/repositories/doses';
+import { clearDoseLog, getDosesForDate, logDose } from '@/repositories/doses';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 async function loadToday(db: Db) {
@@ -75,6 +75,35 @@ export default function TodayScreen() {
     reload();
   }
 
+  // Toque longo numa dose: pular, ou desfazer uma marcação feita por engano.
+  function openDoseMenu(dose: ScheduledDose) {
+    const title = `${dose.medicationName} às ${formatTime(dose.scheduledFor)}`;
+    if (dose.status === 'pending') {
+      Alert.alert(title, 'Marcar esta dose como pulada? Ela conta como não tomada na adesão.', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Pular dose',
+          onPress: async () => {
+            await logDose(db, { scheduleId: dose.scheduleId, scheduledFor: dose.scheduledFor, status: 'skipped', takenAt: null });
+            reload();
+          },
+        },
+      ]);
+      return;
+    }
+    Alert.alert(title, dose.status === 'taken' ? 'Desmarcar a dose como tomada?' : 'Desmarcar a dose como pulada?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Desmarcar',
+        style: 'destructive',
+        onPress: async () => {
+          await clearDoseLog(db, dose.scheduleId, dose.scheduledFor);
+          reload();
+        },
+      },
+    ]);
+  }
+
   // Só em desenvolvimento: toque longo no painel troca os dados por um exemplo ou apaga tudo.
   function openDevMenu() {
     Alert.alert('Dados de desenvolvimento', 'Este menu só existe no modo de desenvolvimento.', [
@@ -113,6 +142,7 @@ export default function TodayScreen() {
               first={index === 0}
               last={index === doses.length - 1}
               onTake={() => markTaken(dose)}
+              onLongPress={() => openDoseMenu(dose)}
             />
           ))}
         </Surface>
@@ -259,12 +289,18 @@ interface DoseRowProps {
   first: boolean;
   last: boolean;
   onTake: () => void;
+  onLongPress: () => void;
 }
 
 /** Uma dose na linha do tempo do dia: horário, trilho com o marcador e ação. */
-function DoseRow({ dose, first, last, onTake }: DoseRowProps) {
+function DoseRow({ dose, first, last, onTake, onLongPress }: DoseRowProps) {
   return (
-    <View style={styles.doseRow}>
+    <Pressable
+      onLongPress={onLongPress}
+      delayLongPress={450}
+      accessibilityHint="Toque longo para pular ou desmarcar"
+      style={({ pressed }) => [styles.doseRow, pressed && styles.doseRowPressed]}
+    >
       <Text style={[styles.doseTime, dose.status === 'taken' && styles.doseTimeDone]}>
         {formatTime(dose.scheduledFor)}
       </Text>
@@ -291,7 +327,7 @@ function DoseRow({ dose, first, last, onTake }: DoseRowProps) {
         )}
         {dose.status === 'skipped' && <Chip tone="amber" label="Pulada" />}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -330,6 +366,7 @@ const styles = StyleSheet.create({
 
   timeline: { paddingVertical: spacing.xs },
   doseRow: { flexDirection: 'row', alignItems: 'stretch', paddingLeft: spacing.lg },
+  doseRowPressed: { backgroundColor: colors.canvas },
   doseTime: {
     width: 48,
     alignSelf: 'center',

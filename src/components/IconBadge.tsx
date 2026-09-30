@@ -7,7 +7,7 @@ import { tones, type Tone } from '@/theme';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-const formIcons: Record<MedicationForm, { icon: IconName; tone: Tone }> = {
+export const medicationFormIcons: Record<MedicationForm, { icon: IconName; tone: Tone }> = {
   tablet: { icon: 'pill', tone: 'violet' },
   suppository: { icon: 'medication', tone: 'violet' },
   enema: { icon: 'water-outline', tone: 'sage' },
@@ -25,7 +25,7 @@ interface IconBadgeProps {
 
 /** Quadrado arredondado com o ícone da forma do remédio. */
 export function IconBadge({ form, size = 44, muted = false }: IconBadgeProps) {
-  const { icon, tone } = formIcons[form];
+  const { icon, tone } = medicationFormIcons[form];
   const { fg, bg } = tones[muted ? 'neutral' : tone];
 
   return (

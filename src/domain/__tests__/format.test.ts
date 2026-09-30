@@ -9,6 +9,8 @@ function schedule(overrides: Partial<MedicationSchedule>): MedicationSchedule {
     intervalDays: null,
     timeOfDay: '08:00',
     notificationId: null,
+    startsOn: null,
+    endsOn: null,
     ...overrides,
   };
 }

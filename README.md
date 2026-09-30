@@ -24,7 +24,7 @@ Objetivos:
 
 - **M1. Cadastrar medicação:** nome, dose em texto livre (ex.: "2 comprimidos de 800 mg"), forma (comprimido, supositório, enema, injeção, infusão ou outro) e observações. A frequência pode ser diária (um ou mais horários) ou a cada N dias/semanas. Data de início obrigatória, data de término opcional. Dá para editar, pausar e arquivar sem perder o histórico.
 - **M2. Lembrete:** notificação local no horário, com nome e dose. Funciona com o app fechado e sem internet.
-- **M3. Registrar dose:** na tela Hoje, cada dose aparece como pendente, tomada ou pulada. Um toque marca como tomada. O histórico mostra a adesão dos últimos 7 e 30 dias.
+- **M3. Registrar dose:** na tela Hoje, cada dose aparece como pendente, tomada ou pulada. Um toque em "Tomei" marca como tomada; um toque longo na dose permite pular ou desmarcar. O histórico mostra a adesão dos últimos 7 e 30 dias.
 
 ### Diário de sintomas
 
@@ -108,7 +108,7 @@ Em ritmo de estudo (cerca de 1 hora por dia), são de 6 a 10 semanas. Cada etapa
 - [x] **1. Setup:** `create-expo-app`, TypeScript, ESLint, Git e GitHub, rodando no Expo Go
 - [x] **2. Navegação com telas falsas:** quatro abas e telas empilhadas com dados fixos
 - [x] **3. Banco de dados:** cliente, migrações e repositórios; os dados fixos passam a vir do SQLite. Adiantados daqui: `dosesForDate`, o botão "Tomei" gravando no banco e o cálculo de adesão
-- [ ] **4. Medicações:** cadastro e edição com validação, pausar e arquivar. **A partir daqui, usar o app de verdade.**
+- [x] **4. Medicações:** cadastro e edição com validação, pausar, reativar e arquivar, pular ou desmarcar doses. **A partir daqui, usar o app de verdade.**
 - [ ] **5. Diário e crises:** formulário gerado pela definição da doença e botões de crise
 - [ ] **6. Consultas e notificações:** CRUD, perguntas para o médico, `rescheduleAll()` e testes em build de desenvolvimento
 - [ ] **7. Polimento e publicação:** ícone, splash, telas vazias, política de privacidade e envio para a loja

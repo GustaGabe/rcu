@@ -30,6 +30,29 @@ export interface MedicationSchedule {
   /** `HH:mm` */
   timeOfDay: string;
   notificationId: string | null;
+  /** Primeiro dia em que o horário vale; `null` = desde o início do remédio. */
+  startsOn: ISODate | null;
+  /** Último dia em que o horário vale; `null` = sem fim. Horários trocados na edição são encerrados aqui. */
+  endsOn: ISODate | null;
+}
+
+/** Horário como o usuário descreve no formulário, antes de virar linha no banco. */
+export interface ScheduleDraft {
+  frequency: ScheduleFrequency;
+  /** Só para `interval`. */
+  intervalDays: number | null;
+  timeOfDay: string;
+}
+
+/** Remédio como sai do formulário. */
+export interface MedicationDraft {
+  name: string;
+  dose: string;
+  form: MedicationForm;
+  notes: string | null;
+  startDate: ISODate;
+  endDate: ISODate | null;
+  schedules: ScheduleDraft[];
 }
 
 export type DoseLogStatus = 'taken' | 'skipped';

@@ -1,6 +1,14 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
-import type { DoseLog, ISODate, ISODateTime, Medication, MedicationSchedule, ScheduledDose } from './types';
+import type {
+  DoseLog,
+  ISODate,
+  ISODateTime,
+  Medication,
+  MedicationSchedule,
+  ScheduleDraft,
+  ScheduledDose,
+} from './types';
 
 /** Identidade de uma dose: o mesmo par é único em `dose_logs`. */
 export function doseKey(scheduleId: number, scheduledFor: ISODateTime): string {
@@ -11,11 +19,24 @@ export function doseKey(scheduleId: number, scheduledFor: ISODateTime): string {
 export function scheduleFallsOn(medication: Medication, schedule: MedicationSchedule, date: ISODate): boolean {
   if (date < medication.startDate) return false;
   if (medication.endDate !== null && date > medication.endDate) return false;
+  if (schedule.startsOn !== null && date < schedule.startsOn) return false;
+  if (schedule.endsOn !== null && date > schedule.endsOn) return false;
   if (schedule.frequency === 'daily') return true;
 
   const interval = schedule.intervalDays ?? 0;
   if (interval <= 0) return false;
   return differenceInCalendarDays(parseISO(date), parseISO(medication.startDate)) % interval === 0;
+}
+
+/** Horário ainda em vigor (não foi encerrado antes de `today`). */
+export function isScheduleCurrent(schedule: MedicationSchedule, today: ISODate): boolean {
+  return schedule.endsOn === null || schedule.endsOn >= today;
+}
+
+/** Mesmo horário, na descrição do formulário? Usado para preservar horários na edição. */
+export function sameSchedule(a: ScheduleDraft, b: ScheduleDraft): boolean {
+  if (a.frequency !== b.frequency || a.timeOfDay !== b.timeOfDay) return false;
+  return a.frequency === 'daily' || a.intervalDays === b.intervalDays;
 }
 
 /**
