@@ -15,6 +15,7 @@ import {
   updateQuestion,
 } from '../appointments';
 import { getPrimaryCondition } from '../conditions';
+import { deleteSetting, getSetting, setSetting } from '../settings';
 import {
   endEpisode,
   getDiaryEntry,
@@ -257,6 +258,19 @@ describe('appointments CRUD', () => {
     await deleteAppointment(db, id);
     expect(await getAppointment(db, id)).toBeNull();
     expect(await db.getAllAsync('SELECT * FROM doctor_questions')).toEqual([]);
+    db.close();
+  });
+});
+
+describe('settings', () => {
+  it('grava, sobrescreve e apaga', async () => {
+    const db = await createMigratedDb();
+    expect(await getSetting(db, 'onboarding_completed_at')).toBeNull();
+    await setSetting(db, 'onboarding_completed_at', '2026-09-30T10:00:00');
+    await setSetting(db, 'onboarding_completed_at', '2026-09-30T11:00:00');
+    expect(await getSetting(db, 'onboarding_completed_at')).toBe('2026-09-30T11:00:00');
+    await deleteSetting(db, 'onboarding_completed_at');
+    expect(await getSetting(db, 'onboarding_completed_at')).toBeNull();
     db.close();
   });
 });

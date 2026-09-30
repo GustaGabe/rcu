@@ -93,6 +93,14 @@ const migrations: string[] = [
   ALTER TABLE medication_schedules ADD COLUMN starts_on TEXT;
   ALTER TABLE medication_schedules ADD COLUMN ends_on TEXT;
   `,
+
+  // 3: preferências do app (ex.: se a introdução já foi vista)
+  `
+  CREATE TABLE app_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+  `,
 ];
 
 export const LATEST_VERSION = migrations.length;

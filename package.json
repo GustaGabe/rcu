@@ -4,12 +4,13 @@
   "main": "expo-router/entry",
   "private": true,
   "scripts": {
-    "start": "expo start",
-    "start:tunnel": "expo start --tunnel",
+    "start": "expo start --go",
+    "start:tunnel": "expo start --tunnel --go",
     "ios": "expo start --ios",
     "test": "jest",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:dev": "expo start --tunnel --dev-client"
   },
   "jest": {
     "preset": "jest-expo"
@@ -24,6 +25,7 @@
     "expo": "~57.0.26",
     "expo-blur": "~57.0.3",
     "expo-constants": "~57.0.20",
+    "expo-dev-client": "~57.0.19",
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-linking": "~57.0.11",

@@ -90,16 +90,22 @@ npm run lint            # ESLint
 npm run typecheck       # TypeScript
 ```
 
-Na primeira abertura o app começa vazio. Para ver as telas com dados, dê um **toque longo no painel roxo da tela Hoje** e escolha "Carregar exemplo" (só existe em modo de desenvolvimento, e substitui o que houver no aparelho).
+Na primeira abertura aparece a introdução, e depois o app começa vazio. Para ver as telas com dados, toque no **(i)** do painel roxo da tela Hoje para abrir a tela Sobre e, em "Desenvolvimento", escolha "Carregar dados de exemplo" (só existe em modo de desenvolvimento, e substitui o que houver no aparelho). Na mesma tela, "Ver a introdução de novo" mostra a introdução outra vez.
 
-Para testar notificações é preciso um build de desenvolvimento, porque o Expo Go tem limitações:
+### Build de desenvolvimento
+
+No Expo Go, lembretes funcionam, mas aparecem com o nome e a permissão do próprio Expo Go. Para testar o app como ele vai para a loja, com ícone, splash e notificações do App RCU, use um build de desenvolvimento (exige a conta Apple Developer):
 
 ```bash
 npm install -g eas-cli
 eas login
-eas device:create
-eas build -p ios --profile development
+eas init                                   # liga o projeto à sua conta Expo
+eas device:create                          # registra o iPhone
+eas build -p ios --profile development     # instale pelo link/QR que o EAS mostrar
+npm run start:dev                          # dev server para o build de desenvolvimento
 ```
+
+`npm run start:tunnel` continua abrindo no Expo Go.
 
 ## Plano de desenvolvimento
 
@@ -111,18 +117,28 @@ Em ritmo de estudo (cerca de 1 hora por dia), são de 6 a 10 semanas. Cada etapa
 - [x] **4. Medicações:** cadastro e edição com validação, pausar, reativar e arquivar, pular ou desmarcar doses. **A partir daqui, usar o app de verdade.**
 - [x] **5. Diário e crises:** formulário gerado pela definição da doença e botões de crise
 - [x] **6. Consultas e notificações:** CRUD, perguntas e respostas, lembretes locais de doses e consultas com `rescheduleAll()`. Falta validar num build de desenvolvimento
-- [ ] **7. Polimento e publicação:** ícone, splash, telas vazias, política de privacidade e envio para a loja
+- [x] **7. Polimento:** introdução, tela Sobre, ícone, splash, política de privacidade, ficha da loja e configuração do EAS
+- [ ] **7b. Publicação:** conta Apple Developer, build de produção, TestFlight e envio para revisão
 
 ## Publicação (iOS)
 
-A primeira versão sai só para iOS, pela App Store, com o EAS Build. Não é preciso ter um Mac.
+A primeira versão sai só para iOS, pela App Store, com o EAS Build. Não é preciso ter um Mac. O que já está pronto no projeto:
 
-1. Criar uma conta Apple Developer como pessoa física (cerca de US$ 99 por ano).
-2. `eas build:configure` e definir `ios.bundleIdentifier` no `app.json`.
-3. Criar o app no App Store Connect com o mesmo bundle identifier.
-4. `eas build -p ios --profile production` e depois `eas submit -p ios`. O build aparece no TestFlight.
-5. Preencher a ficha: descrição, capturas de tela, ícone, classificação etária, política de privacidade e rótulo de privacidade ("não coleta dados").
-6. Enviar para revisão.
+- ícone, splash e nome do app no `app.json`;
+- `ios.bundleIdentifier` = `com.gustagabe.rcu` (troque antes do primeiro build se preferir outro: depois de publicado, não muda);
+- `ios.config.usesNonExemptEncryption: false`, para pular a pergunta de criptografia;
+- `eas.json` com os perfis `development`, `preview` e `production` (versão de build controlada pelo EAS, com incremento automático);
+- política de privacidade em [`docs/privacidade.md`](docs/privacidade.md) e rascunho da ficha em [`docs/app-store.md`](docs/app-store.md).
+
+Passos que dependem das suas contas:
+
+1. Criar a conta Apple Developer como pessoa física (cerca de US$ 99 por ano).
+2. **Publicar a política de privacidade** numa URL pública. O GitHub Pages de repositório privado exige plano pago, então as opções são: um repositório público só com a política, um Gist público ou qualquer página estática. Cole a URL na ficha.
+3. `eas login` e `eas init`.
+4. Criar o app no App Store Connect com o bundle identifier `com.gustagabe.rcu`.
+5. `eas build -p ios --profile production` e depois `eas submit -p ios`. O build aparece no TestFlight para testar sem revisão.
+6. Preencher a ficha com os textos de `docs/app-store.md`, as capturas de tela e o rótulo de privacidade ("não coletamos dados").
+7. Enviar para revisão.
 
 Valores e regras da Apple mudam, então confira as páginas oficiais antes de começar.
 
@@ -142,6 +158,6 @@ Valores e regras da Apple mudam, então confira as páginas oficiais antes de co
 
 ## Privacidade
 
-Dados de saúde são dados pessoais sensíveis pela LGPD. No MVP eles nunca saem do aparelho. A App Store exige uma política de privacidade pública mesmo para apps sem servidor, e uma página no GitHub Pages resolve. Se um dia houver nuvem, tudo isso precisa ser revisto.
+Dados de saúde são dados pessoais sensíveis pela LGPD. No MVP o app não envia nada para fora do aparelho (os backups do próprio iPhone podem incluir os dados, como em qualquer app). A política completa está em [`docs/privacidade.md`](docs/privacidade.md). Se um dia houver nuvem, tudo isso precisa ser revisto.
 
 Padrões entre alimentos e sintomas são pistas para conversar com o gastroenterologista, não conclusões.

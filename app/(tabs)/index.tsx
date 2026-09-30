@@ -16,7 +16,6 @@ import { Surface } from '@/components/Surface';
 import { Text } from '@/components/Text';
 import { activeFields, formatFieldValue } from '@/conditions';
 import { useDb } from '@/db/client';
-import { clearAllData, loadExampleData } from '@/db/devData';
 import type { Db } from '@/db/types';
 import {
   formatDateShort,
@@ -130,31 +129,9 @@ export default function TodayScreen() {
     ]);
   }
 
-  // Só em desenvolvimento: toque longo no painel troca os dados por um exemplo ou apaga tudo.
-  function openDevMenu() {
-    Alert.alert('Dados de desenvolvimento', 'Este menu só existe no modo de desenvolvimento.', [
-      {
-        text: 'Carregar exemplo',
-        onPress: async () => {
-          await loadExampleData(db);
-          afterWrite();
-        },
-      },
-      {
-        text: 'Apagar tudo',
-        style: 'destructive',
-        onPress: async () => {
-          await clearAllData(db);
-          afterWrite();
-        },
-      },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  }
-
   return (
     <Screen tab>
-      <Hero date={today} doses={doses} onLongPress={__DEV__ ? openDevMenu : undefined} />
+      <Hero date={today} doses={doses} />
 
       {doses.length > 0 && permission !== 'granted' && (
         <View style={styles.remindersOff}>
@@ -272,17 +249,27 @@ export default function TodayScreen() {
 }
 
 /** Painel do topo: a data e o progresso das doses do dia. */
-function Hero({ date, doses, onLongPress }: { date: string; doses: ScheduledDose[]; onLongPress?: () => void }) {
+function Hero({ date, doses }: { date: string; doses: ScheduledDose[] }) {
   const taken = doses.filter((d) => d.status === 'taken').length;
   const next = doses
     .filter((d) => d.status === 'pending')
     .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))[0];
 
   return (
-    <Pressable onLongPress={onLongPress} delayLongPress={600} style={styles.hero}>
-      <Text color={colors.lavender} variant="bodyStrong">
-        {capitalizeFirst(formatWeekdayLong(date))}
-      </Text>
+    <View style={styles.hero}>
+      <View style={styles.heroTop}>
+        <Text color={colors.lavender} variant="bodyStrong">
+          {capitalizeFirst(formatWeekdayLong(date))}
+        </Text>
+        <Pressable
+          onPress={() => router.push('/about')}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Sobre o app e ajustes"
+        >
+          <Ionicons name="information-circle-outline" size={26} color={colors.lavenderMuted} />
+        </Pressable>
+      </View>
       <Text variant="display" color={colors.onPlum}>
         {formatDayMonth(date)}
       </Text>
@@ -326,7 +313,7 @@ function Hero({ date, doses, onLongPress }: { date: string; doses: ScheduledDose
           )}
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -406,6 +393,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: 2,
   },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xl, marginTop: spacing.xl },
   ringValue: { fontFamily: fonts.display, fontSize: 22, lineHeight: 26 },
   nextTime: { fontFamily: fonts.display, fontSize: 40, lineHeight: 44, letterSpacing: -1 },

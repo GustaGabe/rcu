@@ -24,8 +24,9 @@ Este arquivo é a especificação técnica do projeto. O `README.md` descreve as
 
 ```bash
 nvm use                                     # Node 24 (o Node 25 padrão da máquina não é LTS)
-npm run start:tunnel                        # dev server com túnel (necessário no WSL2 para o iPhone achar o PC)
-npm start                                   # dev server na rede local
+npm run start:tunnel                        # dev server com túnel, no Expo Go (necessário no WSL2)
+npm run start:dev                           # dev server com túnel para o build de desenvolvimento
+npm start                                   # dev server na rede local, no Expo Go
 npm test                                    # Jest (preset jest-expo)
 npm run lint                                # ESLint (eslint-config-expo)
 npm run typecheck                           # tsc --noEmit
@@ -57,6 +58,8 @@ app/
   diary/[date].tsx
   appointments/[id].tsx  # detalhe: perguntas, respostas, editar, apagar
   appointments/form.tsx  # modal de cadastro (sem id) e edição (?id=)
+  onboarding.tsx         # introdução no primeiro uso (Stack.Protected no _layout)
+  about.tsx              # Sobre: aviso médico, privacidade, lembretes, dev
 src/
   db/                    # client.ts (useDb, initDatabase), migrations.ts, types.ts (Db), devData.ts
   repositories/          # medications, doses, diary, appointments, conditions
@@ -81,6 +84,7 @@ src/
   components/            # base visual (ver "Design") e FloatingTabBar
     form/                # Field, TextField, OptionGrid, Stepper, DateTimeField, SwitchRow, FieldInput
   hooks/useFocusQuery.ts # carrega dados quando a tela ganha foco
+  hooks/useOnboarding.tsx  # complete()/restart() da introdução
   testing/testDb.ts      # Db sobre better-sqlite3 em memória, só para testes
   theme/                 # tokens: cores, tons, espaçamentos, raios, fontes, tipografia
 ```
@@ -182,6 +186,8 @@ Todas são locais (expo-notifications), sem servidor de push. O banco é a únic
 | Consultas | `/(tabs)/appointments` | Consultas próximas e passadas |
 | Consultas | `/appointments/[id]` | Dados, lembretes, perguntas e respostas, editar e apagar |
 | Consultas | `/appointments/form` | Modal de cadastro; com `?id=` edita |
+| — | `/onboarding` | Introdução em 4 páginas, só enquanto não foi vista |
+| — | `/about` | Sobre: aviso médico, privacidade, lembretes, rever introdução, dados de exemplo (dev) |
 
 A tela Hoje é a prioridade: o usuário abre o app, marca o remédio e registra o dia sem trocar de aba.
 
@@ -201,7 +207,13 @@ Jest, em três camadas:
 
 ## Dados de desenvolvimento
 
-Em modo de desenvolvimento, um **toque longo no painel roxo da tela Hoje** abre um menu com "Carregar exemplo" (troca tudo por um mês de dados fictícios, com datas relativas a hoje) e "Apagar tudo". O código está em `src/db/devData.ts` e não aparece em builds de produção (`__DEV__`). Atenção: "Carregar exemplo" apaga os registros reais do aparelho.
+Em modo de desenvolvimento, a tela **Sobre** (ícone (i) no painel da tela Hoje) tem a seção "Desenvolvimento" com "Carregar dados de exemplo" (troca tudo por um mês de dados fictícios, com datas relativas a hoje) e "Apagar todos os dados". O código está em `src/db/devData.ts` e não aparece em builds de produção (`__DEV__`). Atenção: "Carregar" apaga os registros reais do aparelho.
+
+## Introdução e publicação
+
+- **Introdução:** `app_settings.onboarding_completed_at` (migração 3) decide, no `AppNavigator` de `app/_layout.tsx`, entre a introdução e o app via `Stack.Protected`. Toda tela nova do app entra no grupo `guard={onboarded}`.
+- **Marca:** `src/components/AppMark.tsx` desenha em vetor o mesmo símbolo de `assets/icon.png`. Os PNGs de ícone e splash foram gerados a partir desse SVG; se o desenho mudar, gere os dois de novo.
+- **Loja:** `eas.json` (perfis development, preview, production), `ios.bundleIdentifier` `com.gustagabe.rcu`, `docs/privacidade.md` e `docs/app-store.md`. Textos de privacidade dizem que o app **não envia** dados; não prometa que eles "nunca saem do aparelho" (backups do iPhone podem incluí-los).
 
 ## Saúde e privacidade
 
