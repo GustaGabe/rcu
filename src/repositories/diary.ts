@@ -102,3 +102,26 @@ export async function createEpisode(db: Db, input: EpisodeInput): Promise<number
   );
   return result.lastInsertRowId;
 }
+
+/** Episódio em andamento (sem data de fim), se houver. */
+export async function getOpenEpisode(db: Db, conditionId: string): Promise<Episode | null> {
+  const row = await db.getFirstAsync<EpisodeRow>(
+    'SELECT * FROM episodes WHERE condition_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1',
+    [conditionId],
+  );
+  return row ? toEpisode(row) : null;
+}
+
+/** Abre um episódio na data, se não houver outro em andamento. Devolve o episódio aberto. */
+export async function startEpisode(db: Db, conditionId: string, date: ISODate): Promise<Episode> {
+  const open = await getOpenEpisode(db, conditionId);
+  if (open) return open;
+  const id = await createEpisode(db, { conditionId, startDate: date, endDate: null, notes: null });
+  return { id, conditionId, startDate: date, endDate: null, notes: null };
+}
+
+/** Fecha o episódio na data (nunca antes do início). */
+export async function endEpisode(db: Db, episode: Episode, date: ISODate): Promise<void> {
+  const endDate = date < episode.startDate ? episode.startDate : date;
+  await db.runAsync('UPDATE episodes SET end_date = ? WHERE id = ?', [endDate, episode.id]);
+}

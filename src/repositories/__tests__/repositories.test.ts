@@ -10,7 +10,16 @@ import {
   setQuestionAsked,
 } from '../appointments';
 import { getPrimaryCondition } from '../conditions';
-import { getDiaryEntry, getPreviousDiaryEntry, listDiaryEntries, saveDiaryEntry } from '../diary';
+import {
+  endEpisode,
+  getDiaryEntry,
+  getOpenEpisode,
+  getPreviousDiaryEntry,
+  listDiaryEntries,
+  listEpisodes,
+  saveDiaryEntry,
+  startEpisode,
+} from '../diary';
 import { clearDoseLog, getAdherence, getDosesForDate, logDose } from '../doses';
 import {
   createMedication,
@@ -177,6 +186,21 @@ describe('diary', () => {
     expect(await getDiaryEntry(db, 'rcu', '2026-09-29')).toMatchObject({ values: { pain: 2 }, notes: 'b' });
     expect((await getPreviousDiaryEntry(db, 'rcu', '2026-09-29'))?.date).toBe('2026-09-28');
     expect((await listDiaryEntries(db, 'rcu')).map((e) => e.date)).toEqual(['2026-09-29', '2026-09-28']);
+    db.close();
+  });
+});
+
+describe('episodes', () => {
+  it('abre uma crise por vez e fecha sem data antes do início', async () => {
+    const db = await createMigratedDb();
+    const first = await startEpisode(db, 'rcu', '2026-09-26');
+    const again = await startEpisode(db, 'rcu', '2026-09-27');
+    expect(again.id).toBe(first.id);
+    expect((await getOpenEpisode(db, 'rcu'))?.startDate).toBe('2026-09-26');
+
+    await endEpisode(db, first, '2026-09-20');
+    expect(await getOpenEpisode(db, 'rcu')).toBeNull();
+    expect((await listEpisodes(db, 'rcu'))[0]).toMatchObject({ startDate: '2026-09-26', endDate: '2026-09-26' });
     db.close();
   });
 });

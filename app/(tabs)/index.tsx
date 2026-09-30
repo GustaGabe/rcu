@@ -165,7 +165,7 @@ export default function TodayScreen() {
               {activeFields(condition)
                 .filter((f) => f.required)
                 .map((f) => (
-                  <Chip key={f.key} label={`${f.label} ${formatFieldValue(f, todayEntry.values[f.key])}`} />
+                  <Chip key={f.key} label={`${f.label}: ${formatFieldValue(f, todayEntry.values[f.key])}`} />
                 ))}
             </View>
             <Button

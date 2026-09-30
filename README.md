@@ -109,7 +109,7 @@ Em ritmo de estudo (cerca de 1 hora por dia), são de 6 a 10 semanas. Cada etapa
 - [x] **2. Navegação com telas falsas:** quatro abas e telas empilhadas com dados fixos
 - [x] **3. Banco de dados:** cliente, migrações e repositórios; os dados fixos passam a vir do SQLite. Adiantados daqui: `dosesForDate`, o botão "Tomei" gravando no banco e o cálculo de adesão
 - [x] **4. Medicações:** cadastro e edição com validação, pausar, reativar e arquivar, pular ou desmarcar doses. **A partir daqui, usar o app de verdade.**
-- [ ] **5. Diário e crises:** formulário gerado pela definição da doença e botões de crise
+- [x] **5. Diário e crises:** formulário gerado pela definição da doença e botões de crise
 - [ ] **6. Consultas e notificações:** CRUD, perguntas para o médico, `rescheduleAll()` e testes em build de desenvolvimento
 - [ ] **7. Polimento e publicação:** ícone, splash, telas vazias, política de privacidade e envio para a loja
 

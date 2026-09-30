@@ -7,7 +7,8 @@ import { colors, fonts, radius } from '@/theme';
 import { Text } from '../Text';
 
 interface StepperProps {
-  value: number;
+  /** `null` mostra "—"; o primeiro toque define um valor. */
+  value: number | null;
   onChange: (value: number) => void;
   min?: number;
   max?: number;
@@ -21,19 +22,21 @@ export function Stepper({ value, onChange, min = 1, max = 365, accessibilityLabe
     Haptics.selectionAsync();
     onChange(next);
   }
+  const increment = () => change(value === null ? Math.min(min + 1, max) : value + 1);
+  const decrement = () => change(value === null ? min : value - 1);
 
   return (
     <View
       style={styles.stepper}
       accessibilityRole="adjustable"
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ now: value, min, max }}
+      accessibilityValue={value === null ? { text: 'sem valor' } : { now: value, min, max }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-      onAccessibilityAction={(e) => change(e.nativeEvent.actionName === 'increment' ? value + 1 : value - 1)}
+      onAccessibilityAction={(e) => (e.nativeEvent.actionName === 'increment' ? increment() : decrement())}
     >
-      <StepButton icon="remove" disabled={value <= min} onPress={() => change(value - 1)} />
-      <Text style={styles.value}>{value}</Text>
-      <StepButton icon="add" disabled={value >= max} onPress={() => change(value + 1)} />
+      <StepButton icon="remove" disabled={value !== null && value <= min} onPress={decrement} />
+      <Text style={styles.value}>{value ?? '—'}</Text>
+      <StepButton icon="add" disabled={value !== null && value >= max} onPress={increment} />
     </View>
   );
 }
