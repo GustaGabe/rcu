@@ -1,0 +1,138 @@
+# App RCU
+
+App para quem convive com uma doença crônica: tomar os remédios na hora certa, registrar sintomas em menos de 30 segundos e não perder consultas. A primeira versão é feita para **retocolite ulcerativa (RCU)**, e a estrutura já está pronta para receber outras doenças.
+
+Todos os dados ficam no celular. Não há conta, servidor nem nuvem.
+
+> ⚠️ O app só organiza informações. Ele **não dá orientação médica**, não recomenda doses e não faz diagnósticos. Converse sempre com o seu médico.
+
+## Por que existe
+
+O tratamento da RCU combina remédios com esquemas diferentes: diários, semanais, infusões a cada X semanas e desmame de corticoide. Os sintomas mudam de um dia para o outro, e na consulta é difícil lembrar como foi o último mês.
+
+Objetivos:
+
+- resolver uma dor real do dia a dia, com o próprio desenvolvedor como primeiro usuário;
+- aprender React Native na prática (navegação, formulários, listas, persistência e notificações);
+- publicar o primeiro app, começando pela App Store.
+
+**Critério de sucesso do MVP:** usar o app todos os dias por 30 dias seguidos, sem precisar de outra ferramenta para lembretes ou anotações.
+
+## Funcionalidades do MVP
+
+### Medicações
+
+- **M1. Cadastrar medicação:** nome, dose em texto livre (ex.: "2 comprimidos de 800 mg"), forma (comprimido, supositório, enema, injeção, infusão ou outro) e observações. A frequência pode ser diária (um ou mais horários) ou a cada N dias/semanas. Data de início obrigatória, data de término opcional. Dá para editar, pausar e arquivar sem perder o histórico.
+- **M2. Lembrete:** notificação local no horário, com nome e dose. Funciona com o app fechado e sem internet.
+- **M3. Registrar dose:** na tela Hoje, cada dose aparece como pendente, tomada ou pulada. Um toque marca como tomada. O histórico mostra a adesão dos últimos 7 e 30 dias.
+
+### Diário de sintomas
+
+- **D1. Registrar o dia:** um registro por dia, editável, com os valores do dia anterior já preenchidos. Na RCU os campos são: evacuações, sangue (nenhum, pouco, muito), urgência (0–3), dor (0–10), escala de Bristol (1–7), cansaço (0–3) e uma nota livre.
+- **D2. Marcar crise:** o botão "estou em crise" abre uma crise, e "crise encerrou" fecha.
+- **D3. Histórico:** lista do dia mais recente para o mais antigo, com os dias de crise destacados.
+
+### Consultas
+
+- **C1. Agendar:** data e hora, tipo (consulta, exame, infusão), profissional, local e observações. Lembrete 1 dia antes e/ou 2 horas antes.
+- **C2. Perguntas para o médico:** lista de dúvidas ligada à próxima consulta, com checkbox de "perguntei" e espaço para anotar a resposta.
+
+## Pensado para várias doenças
+
+Os campos do diário e o nome do episódio (ex.: "crise") não ficam fixos nas telas. Cada doença é uma **definição** em `src/conditions/<doença>/definition.ts` que lista seus campos: tipo, faixa de valores e se é obrigatório. O formulário e a validação são gerados a partir dela. Medicações, consultas, lembretes e adesão são iguais para qualquer doença.
+
+Para adicionar uma doença nova, basta criar a definição e registrá-la, sem mexer no banco. Os detalhes estão no [CLAUDE.md](CLAUDE.md).
+
+## Stack
+
+| Camada | Escolha |
+|---|---|
+| Framework | Expo (SDK mais recente) + TypeScript |
+| Navegação | Expo Router |
+| Banco | expo-sqlite (local, offline) |
+| Notificações | expo-notifications (locais) |
+| Formulários | react-hook-form + zod |
+| Datas | date-fns (pt-BR) |
+| UI | Componentes próprios com StyleSheet |
+
+## Estrutura
+
+```
+app/                 # telas (Expo Router): abas Hoje, Remédios, Diário e Consultas
+src/
+  db/                # conexão e migrações do SQLite
+  repositories/      # única camada que acessa o banco
+  conditions/        # definições por doença (rcu/ é a primeira)
+  domain/            # regras puras: doses do dia, adesão, schema do diário
+  notifications/     # agendamento de lembretes
+  components/
+  theme/
+```
+
+## Como rodar
+
+Pré-requisitos: Node.js LTS e o app **Expo Go** no iPhone.
+
+```bash
+npm install
+npx expo start      # escaneie o QR code com a câmera do iPhone
+npm test
+```
+
+Para testar notificações é preciso um build de desenvolvimento, porque o Expo Go tem limitações:
+
+```bash
+npm install -g eas-cli
+eas login
+eas device:create
+eas build -p ios --profile development
+```
+
+## Plano de desenvolvimento
+
+Em ritmo de estudo (cerca de 1 hora por dia), são de 6 a 10 semanas. Cada etapa termina com algo funcionando no celular.
+
+- [ ] **1. Setup:** `create-expo-app`, TypeScript, ESLint, Git e GitHub, rodando no Expo Go
+- [ ] **2. Navegação com telas falsas:** quatro abas e telas empilhadas com dados fixos
+- [ ] **3. Banco de dados:** cliente, migrações e repositórios; os dados fixos passam a vir do SQLite
+- [ ] **4. Medicações:** cadastro com validação, lista, `dosesForDate` com testes e botão "tomei" na tela Hoje. **A partir daqui, usar o app de verdade.**
+- [ ] **5. Diário e crises:** formulário gerado pela definição da doença, histórico e adesão
+- [ ] **6. Consultas e notificações:** CRUD, perguntas para o médico, `rescheduleAll()` e testes em build de desenvolvimento
+- [ ] **7. Polimento e publicação:** ícone, splash, telas vazias, política de privacidade e envio para a loja
+
+## Publicação (iOS)
+
+A primeira versão sai só para iOS, pela App Store, com o EAS Build. Não é preciso ter um Mac.
+
+1. Criar uma conta Apple Developer como pessoa física (cerca de US$ 99 por ano).
+2. `eas build:configure` e definir `ios.bundleIdentifier` no `app.json`.
+3. Criar o app no App Store Connect com o mesmo bundle identifier.
+4. `eas build -p ios --profile production` e depois `eas submit -p ios`. O build aparece no TestFlight.
+5. Preencher a ficha: descrição, capturas de tela, ícone, classificação etária, política de privacidade e rótulo de privacidade ("não coleta dados").
+6. Enviar para revisão.
+
+Valores e regras da Apple mudam, então confira as páginas oficiais antes de começar.
+
+## Roadmap
+
+| Versão | Funcionalidade | Ferramenta ou API |
+|---|---|---|
+| v2 | Alimentos que fazem mal e diário alimentar | Open Food Facts, tabela TACO |
+| v2 | Exames com gráfico da calprotectina | victory-native (ou similar) |
+| v2 | Relatório do mês em PDF | expo-print, expo-sharing |
+| v2 | Estoque de remédio e autocomplete de nomes | CSV de medicamentos da ANVISA |
+| v2 | Novas doenças além da RCU | Definições em `src/conditions/` |
+| v3 | Sono e passos cruzados com sintomas | HealthKit, Health Connect |
+| v3 | Backup e sincronização | Supabase |
+| v3 | Banheiros próximos | Overpass API (OpenStreetMap) |
+| — | Android | Mesmo código, com build EAS |
+
+## Privacidade
+
+Dados de saúde são dados pessoais sensíveis pela LGPD. No MVP eles nunca saem do aparelho. A App Store exige uma política de privacidade pública mesmo para apps sem servidor, e uma página no GitHub Pages resolve. Se um dia houver nuvem, tudo isso precisa ser revisto.
+
+Padrões entre alimentos e sintomas são pistas para conversar com o gastroenterologista, não conclusões.
+
+## Especificação
+
+O documento original do MVP está em [`App RCU — Documentação do MVP.pdf`](<App RCU — Documentação do MVP.pdf>).
