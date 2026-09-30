@@ -15,6 +15,12 @@ export const medicationStatusLabels: Record<MedicationStatus, string> = {
   archived: 'Arquivados',
 };
 
+export const medicationStatusSingular: Record<MedicationStatus, string> = {
+  active: 'Ativo',
+  paused: 'Pausado',
+  archived: 'Arquivado',
+};
+
 export const appointmentTypeLabels: Record<AppointmentType, string> = {
   consultation: 'Consulta',
   exam: 'Exame',

@@ -29,3 +29,8 @@ function joinPt(items: string[]): string {
   if (items.length <= 1) return items.join('');
   return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 }
+
+/** Primeira letra maiúscula: "quarta-feira" → "Quarta-feira". */
+export function capitalizeFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

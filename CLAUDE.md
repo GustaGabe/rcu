@@ -15,8 +15,10 @@ Este arquivo é a especificação técnica do projeto. O `README.md` descreve as
 - expo-sqlite (banco local) e expo-notifications (lembretes locais)
 - react-hook-form + zod (formulários com validação tipada)
 - date-fns com locale pt-BR
-- Ícones: `@expo/vector-icons` (Ionicons)
+- Ícones: `@expo/vector-icons` (Ionicons; MaterialCommunityIcons para as formas de remédio)
 - UI com componentes próprios e `StyleSheet`. Não adicione biblioteca de UI no MVP.
+- Movimento e acabamento: react-native-reanimated 4, expo-blur, expo-haptics, react-native-svg
+- Fontes: Bricolage Grotesque (títulos e números) e Instrument Sans (texto), via `@expo-google-fonts`, carregadas em `app/_layout.tsx`
 
 ## Comandos
 
@@ -69,12 +71,24 @@ src/
     adherence.ts         # % de doses tomadas em 7 e 30 dias
     diarySchema.ts       # buildDiarySchema(def) gera o zod a partir da definição
   notifications/scheduler.ts   # rescheduleAll()
-  components/            # Screen, Card, Button, Text, InfoRow, SectionHeader, EmptyState
+  components/            # base visual (ver "Design") e FloatingTabBar
   mocks/data.ts          # TEMPORÁRIO: dados falsos da etapa 2, removidos na etapa 3
-  theme/                 # cores, espaçamentos, fontes
+  theme/                 # tokens: cores, tons, espaçamentos, raios, fontes, tipografia
 ```
 
 `@/` é alias para `src/` (ex.: `import { Card } from '@/components/Card'`). Ainda não existem, e entram nas etapas 3 a 6: `db/`, `repositories/`, `notifications/`, `schedule.ts`, `adherence.ts` e `diarySchema.ts`.
+
+## Design
+
+O visual parte do roxo, cor de conscientização das doenças inflamatórias intestinais. Os tokens ficam em `src/theme/index.ts`, e nenhuma tela usa cor, fonte ou tamanho solto.
+
+- **Paleta:** fundo lilás-acinzentado (`canvas`), superfícies brancas sem borda nem sombra, `plum` escuro para o painel da tela Hoje e a barra de abas, `lavender` como destaque sobre o escuro, `violet` para ações. Tons semânticos (`tones`): `sage` = tomado/ok, `rose` = crise, `amber` = pulado/pausado.
+- **Tipografia:** use o componente `Text` com `variant` (`display`, `title`, `numeral`, `heading`, `body`, `bodyStrong`, `caption`, `label`). Com fonte própria não use `fontWeight`; o peso vem da família em `fonts`. Nada de texto todo em maiúsculas.
+- **Barra de abas:** `FloatingTabBar`, em vidro escuro flutuante. A aba ativa vira uma pílula lavanda com ícone preenchido e nome, que desliza entre as abas. Telas de aba usam `<Screen tab>`, que reserva espaço para ela e para a área segura, e não têm header nativo (o título vem de `LargeTitle`).
+- **Componentes:** `Surface` (bloco branco) e `ListRow` (linhas agrupadas dentro de `<Surface padded={false}>`), `SegmentedControl`, `Chip`, `DateTile`, `IconBadge`, `ProgressRing`, `FieldValue` (valor de um campo do diário conforme o tipo), `Button`, `IconButton`, `InfoRow`, `EmptyState`, `SectionHeader`.
+- **Movimento:** só em resposta a ações (toque encolhe, dose marcada, troca de aba e de segmento), mais o anel da tela Hoje ao abrir. Use `.get()`/`.set()` nos shared values do Reanimated (a regra do React Compiler no lint proíbe `.value =`).
+- **Toque:** `expo-haptics`. Seleção leve em abas e segmentos; sucesso ao marcar dose.
+- **Texto na UI:** frases curtas e diretas, verbos no botão ("Registrar o dia", "Tomei"), estado vazio que convida à ação.
 
 ## Regras de arquitetura
 

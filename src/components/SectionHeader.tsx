@@ -1,11 +1,27 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { spacing, typography } from '@/theme';
+import { spacing } from '@/theme';
 
-export function SectionHeader({ title }: { title: string }) {
-  return <Text style={styles.title}>{title}</Text>;
+import { Text } from './Text';
+
+export function SectionHeader({ title, detail }: { title: string; detail?: string }) {
+  return (
+    <View style={styles.row}>
+      <Text variant="title" style={styles.title}>
+        {title}
+      </Text>
+      {detail && <Text variant="caption">{detail}</Text>}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.heading, marginTop: spacing.md },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    marginBottom: -spacing.xs,
+  },
+  title: { fontSize: 20, lineHeight: 24 },
 });

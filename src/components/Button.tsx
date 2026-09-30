@@ -1,47 +1,65 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import type { ComponentProps } from 'react';
+import { StyleSheet } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
+
+import { Pressable } from './Pressable';
+import { Text } from './Text';
+
+type Variant = 'primary' | 'soft' | 'onPlum' | 'danger';
 
 interface ButtonProps {
   title: string;
   onPress?: () => void;
-  variant?: 'primary' | 'secondary';
+  variant?: Variant;
+  size?: 'md' | 'sm';
+  icon?: ComponentProps<typeof Ionicons>['name'];
   disabled?: boolean;
 }
 
-export function Button({ title, onPress, variant = 'primary', disabled = false }: ButtonProps) {
-  const isPrimary = variant === 'primary';
+const palette: Record<Variant, { bg: string; fg: string; border?: string }> = {
+  primary: { bg: colors.violet, fg: colors.onViolet },
+  soft: { bg: colors.violetSoft, fg: colors.violet },
+  onPlum: { bg: colors.lavender, fg: colors.plum },
+  danger: { bg: colors.surface, fg: colors.rose, border: colors.rose },
+};
+
+export function Button({ title, onPress, variant = 'primary', size = 'md', icon, disabled = false }: ButtonProps) {
+  const { bg, fg, border } = palette[variant];
+  const small = size === 'sm';
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [
+      style={[
         styles.base,
-        isPrimary ? styles.primary : styles.secondary,
-        pressed && styles.pressed,
+        small ? styles.sm : styles.md,
+        { backgroundColor: bg },
+        border ? { borderColor: border, borderWidth: 1.5 } : null,
         disabled && styles.disabled,
       ]}
     >
-      <Text style={[styles.label, isPrimary ? styles.primaryLabel : styles.secondaryLabel]}>{title}</Text>
+      {icon && <Ionicons name={icon} size={small ? 15 : 18} color={fg} />}
+      <Text color={fg} style={[styles.label, small && styles.labelSm]}>
+        {title}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.pill,
   },
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.primarySoft },
-  pressed: { opacity: 0.8 },
+  md: { paddingVertical: 14, paddingHorizontal: spacing.xl },
+  sm: { paddingVertical: 8, paddingHorizontal: 14 },
   disabled: { opacity: 0.4 },
-  label: { fontSize: 15, fontWeight: '600' },
-  primaryLabel: { color: colors.onPrimary },
-  secondaryLabel: { color: colors.primary },
+  label: { fontFamily: fonts.bodySemibold, fontSize: 15 },
+  labelSm: { fontSize: 14 },
 });

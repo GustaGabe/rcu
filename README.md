@@ -53,7 +53,8 @@ Para adicionar uma doença nova, basta criar a definição e registrá-la, sem m
 | Notificações | expo-notifications (locais) |
 | Formulários | react-hook-form + zod |
 | Datas | date-fns (pt-BR) |
-| UI | Componentes próprios com StyleSheet |
+| UI | Componentes próprios com StyleSheet, Reanimated, expo-blur e expo-haptics |
+| Fontes | Bricolage Grotesque e Instrument Sans |
 
 ## Estrutura
 
