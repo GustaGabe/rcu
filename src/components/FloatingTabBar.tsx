@@ -1,8 +1,14 @@
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import type { Tabs } from 'expo-router';
-import { useEffect, useRef, type ComponentProps } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent, type LayoutRectangle } from 'react-native';
+import { useEffect, useRef, type ReactNode } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type ColorValue,
+  type LayoutChangeEvent,
+  type LayoutRectangle,
+} from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -15,7 +21,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, fonts, TAB_BAR_GAP, TAB_BAR_HEIGHT } from '@/theme';
 
-type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
+/**
+ * O que a barra usa das props do navegador de abas (`TopTabs`). Os tipos do navegador são `any`,
+ * então descrevemos aqui só o necessário para manter a checagem.
+ */
+interface TabBarProps {
+  state: { index: number; routes: { key: string; name: string; params?: object }[] };
+  descriptors: Record<
+    string,
+    { options: { title?: string; tabBarIcon?: (props: { focused: boolean; color: ColorValue }) => ReactNode } }
+  >;
+  navigation: {
+    emit(event: { type: 'tabPress'; target: string; canPreventDefault: true }): { defaultPrevented: boolean };
+    navigate(name: string, params?: object): void;
+  };
+}
 
 const INSET = 6;
 const SPRING = { damping: 20, stiffness: 220, mass: 0.9 };
@@ -96,7 +116,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
                   hitSlop={6}
                   style={styles.pressable}
                 >
-                  {options.tabBarIcon?.({ focused, color, size: 22 })}
+                  {options.tabBarIcon?.({ focused, color })}
                   {focused && (
                     <Animated.Text
                       entering={FadeIn.duration(220).delay(60)}

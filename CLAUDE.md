@@ -48,7 +48,7 @@ Rode `typecheck`, `lint` e `test` antes de dar uma tarefa por concluída.
 app/
   _layout.tsx            # abre o banco, roda migrações, chama rescheduleAll()
   (tabs)/
-    _layout.tsx          # barra de abas
+    _layout.tsx          # abas num paginador (TopTabs, deslizar troca de aba) + FloatingTabBar
     index.tsx            # Hoje
     meds.tsx
     diary.tsx
@@ -98,6 +98,7 @@ O visual parte do roxo, cor de conscientização das doenças inflamatórias int
 - **Paleta:** fundo lilás-acinzentado (`canvas`), superfícies brancas sem borda nem sombra, `plum` escuro para o painel da tela Hoje e a barra de abas, `lavender` como destaque sobre o escuro, `violet` para ações. Tons semânticos (`tones`): `sage` = tomado/ok, `rose` = crise, `amber` = pulado/pausado.
 - **Tipografia:** use o componente `Text` com `variant` (`display`, `title`, `numeral`, `heading`, `body`, `bodyStrong`, `caption`, `label`). Com fonte própria não use `fontWeight`; o peso vem da família em `fonts`. Nada de texto todo em maiúsculas.
 - **Barra de abas:** `FloatingTabBar`, em vidro escuro flutuante. A aba ativa vira uma pílula lavanda com ícone preenchido e nome, que desliza entre as abas. Telas de aba usam `<Screen tab>`, que reserva espaço para ela e para a área segura, e não têm header nativo (o título vem de `LargeTitle`).
+- **Deslizar entre abas:** o layout `(tabs)` usa `TopTabs` (`expo-router/js-top-tabs`: react-native-tab-view sobre o paginador nativo react-native-pager-view) com `tabBarPosition="bottom"` e a nossa barra. Todas as abas ficam montadas (`lazy: false`). Não coloque gestos horizontais (carrossel, arrastar para apagar) direto numa tela de aba: eles disputam o gesto com o paginador.
 - **Componentes:** `Surface` (bloco branco) e `ListRow` (linhas agrupadas dentro de `<Surface padded={false}>`), `SegmentedControl`, `Chip`, `DateTile`, `IconBadge`, `ProgressRing`, `FieldInput` (campo do diário editável conforme o tipo: contador, escala em segmentos, chips ou texto), `Button`, `IconButton`, `InfoRow`, `EmptyState`, `SectionHeader`.
 - **Movimento:** só em resposta a ações (toque encolhe, dose marcada, troca de aba e de segmento), mais o anel da tela Hoje ao abrir. Use `.get()`/`.set()` nos shared values do Reanimated (a regra do React Compiler no lint proíbe `.value =`).
 - **Toque:** `expo-haptics`. Seleção leve em abas e segmentos; sucesso ao marcar dose.
@@ -106,7 +107,7 @@ O visual parte do roxo, cor de conscientização das doenças inflamatórias int
 ## Regras de arquitetura
 
 - **A UI nunca acessa o banco.** Telas não escrevem SQL: chamam funções de `src/repositories/*`, que recebem o `Db` como primeiro argumento e convertem snake_case ↔ camelCase.
-- **Carregar dados numa tela:** uma função `load(db)` que junta as consultas (no escopo do módulo, ou em `useCallback` se depender de parâmetro da rota) passada a `useFocusQuery`. Ela roda de novo quando a tela ganha foco; depois de gravar, chame `reload()`. `useDb()` dá o banco para as gravações.
+- **Carregar dados numa tela:** uma função `load(db)` que junta as consultas (no escopo do módulo, ou em `useCallback` se depender de parâmetro da rota) passada a `useFocusQuery`. Ela roda ao montar (as abas vizinhas aparecem durante o arrasto antes de ganhar foco) e de novo quando a tela ganha foco; depois de gravar, chame `reload()`. `useDb()` dá o banco para as gravações.
 - **Editar horários não reescreve o histórico.** `updateMedication` mantém os horários iguais; um horário removido que já tem doses marcadas é encerrado ontem (`ends_on`), e um sem marcações é apagado. Horários novos num remédio já iniciado valem a partir de hoje (`starts_on`). Remédios nunca são apagados: são pausados ou arquivados.
 - **Formulários:** react-hook-form + zod, com schema e conversões puras em `src/domain` (ex.: `medicationForm.ts`) e testadas. Use `useWatch`, não `watch` (o lint do React Compiler reclama). Mensagens de erro em pt-BR dizem o que fazer.
 - **Diário:** `buildDiarySchema(def)` gera o zod a partir dos campos ativos; `initialDiaryValues` aplica o `carryOver` do registro anterior; `valuesToSave` mantém chaves de campos aposentados. Crises: uma aberta por vez (`startEpisode`/`endEpisode`), e o fim nunca fica antes do início.
