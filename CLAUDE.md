@@ -127,6 +127,7 @@ Cada doença é um objeto `ConditionDefinition` em código:
   id: 'rcu',
   name: 'Retocolite ulcerativa',
   episodeLabel: 'crise',
+  episodeIcon: { active: 'emoticon-sick', idle: 'emoticon-sick-outline' },   // MaterialCommunityIcons
   fields: [
     { key: 'bowel_count', label: 'Evacuações', type: 'count', min: 0, required: true, carryOver: true },
     { key: 'blood', label: 'Sangue', type: 'enum', required: true, carryOver: true,

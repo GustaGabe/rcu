@@ -4,6 +4,7 @@ export const rcu: ConditionDefinition = {
   id: 'rcu',
   name: 'Retocolite ulcerativa',
   episodeLabel: 'crise',
+  episodeIcon: { active: 'emoticon-sick', idle: 'emoticon-sick-outline' },
   fields: [
     { key: 'bowel_count', label: 'Evacuações', type: 'count', min: 0, required: true, carryOver: true },
     {

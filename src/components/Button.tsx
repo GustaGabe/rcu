@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -15,6 +15,8 @@ interface ButtonProps {
   variant?: Variant;
   size?: 'md' | 'sm';
   icon?: ComponentProps<typeof Ionicons>['name'];
+  /** Ícone de outro conjunto; recebe cor e tamanho. Tem prioridade sobre `icon`. */
+  renderIcon?: (color: string, size: number) => ReactNode;
   disabled?: boolean;
 }
 
@@ -25,7 +27,15 @@ const palette: Record<Variant, { bg: string; fg: string; border?: string }> = {
   danger: { bg: colors.surface, fg: colors.rose, border: colors.rose },
 };
 
-export function Button({ title, onPress, variant = 'primary', size = 'md', icon, disabled = false }: ButtonProps) {
+export function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  size = 'md',
+  icon,
+  renderIcon,
+  disabled = false,
+}: ButtonProps) {
   const { bg, fg, border } = palette[variant];
   const small = size === 'sm';
 
@@ -41,7 +51,7 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', icon,
         disabled && styles.disabled,
       ]}
     >
-      {icon && <Ionicons name={icon} size={small ? 15 : 18} color={fg} />}
+      {renderIcon ? renderIcon(fg, small ? 15 : 18) : icon && <Ionicons name={icon} size={small ? 15 : 18} color={fg} />}
       <Text color={fg} style={[styles.label, small && styles.labelSm]}>
         {title}
       </Text>

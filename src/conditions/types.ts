@@ -1,3 +1,9 @@
+import type MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import type { ComponentProps } from 'react';
+
+/** Nome de ícone do conjunto MaterialCommunityIcons. */
+export type ConditionIconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+
 interface BaseField {
   /** Chave permanente: nunca renomeie nem reaproveite. */
   key: string;
@@ -42,5 +48,7 @@ export interface ConditionDefinition {
   name: string;
   /** Nome do episódio de piora, no singular e minúsculo (ex.: "crise"). */
   episodeLabel: string;
+  /** Símbolo do episódio: `active` para dia/episódio em curso, `idle` para o botão de iniciar. */
+  episodeIcon: { active: ConditionIconName; idle: ConditionIconName };
   fields: FieldDefinition[];
 }

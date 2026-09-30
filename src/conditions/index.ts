@@ -1,7 +1,7 @@
 import { rcu } from './rcu/definition';
 import type { ConditionDefinition, FieldDefinition } from './types';
 
-export type { ConditionDefinition, FieldDefinition } from './types';
+export type { ConditionDefinition, ConditionIconName, FieldDefinition } from './types';
 
 /** Doenças disponíveis no app. Para adicionar uma, crie a pasta dela e registre aqui. */
 export const conditions: ConditionDefinition[] = [rcu];

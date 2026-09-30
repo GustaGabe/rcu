@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
+import { EpisodeIcon } from '@/components/EpisodeIcon';
 import { Field } from '@/components/form/Field';
 import { FieldInput } from '@/components/form/FieldInput';
 import { TextField } from '@/components/form/TextField';
@@ -148,7 +149,13 @@ function DiaryForm({ date, condition, entry, previous, episodes, onEpisodeChange
           </Text>
           <Text variant="display">{formatDayMonth(date)}</Text>
         </View>
-        {inEpisode && <Chip tone="rose" icon="flame" label={`Dia de ${label}`} />}
+        {inEpisode && (
+          <Chip
+            tone="rose"
+            renderIcon={(color) => <EpisodeIcon condition={condition} size={14} color={color} />}
+            label={`Dia de ${label}`}
+          />
+        )}
         {!entry && previous && (
           <Text variant="caption">
             Preenchido com o registro de {formatDateShort(previous.date)}. Ajuste o que mudou e salve.
@@ -193,7 +200,7 @@ function DiaryForm({ date, condition, entry, previous, episodes, onEpisodeChange
         </Field>
 
         <View style={[styles.episode, openEpisode && styles.episodeOpen]}>
-          <Ionicons name={openEpisode ? 'flame' : 'flame-outline'} size={22} color={colors.rose} />
+          <EpisodeIcon condition={condition} active={!!openEpisode} size={24} color={colors.rose} />
           <View style={styles.flex}>
             <Text variant="bodyStrong">
               {openEpisode
@@ -209,7 +216,13 @@ function DiaryForm({ date, condition, entry, previous, episodes, onEpisodeChange
         </View>
         <Button
           variant={openEpisode ? 'soft' : 'danger'}
-          icon={openEpisode ? 'checkmark-circle-outline' : 'flame-outline'}
+          renderIcon={(color, size) =>
+            openEpisode ? (
+              <MaterialCommunityIcons name="emoticon-happy-outline" size={size} color={color} />
+            ) : (
+              <EpisodeIcon condition={condition} active={false} size={size} color={color} />
+            )
+          }
           title={openEpisode ? `${capitalizeFirst(label)} encerrou` : `Estou em ${label}`}
           onPress={toggleEpisode}
         />

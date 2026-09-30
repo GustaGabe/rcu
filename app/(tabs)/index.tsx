@@ -9,6 +9,7 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { DateTile } from '@/components/DateTile';
 import { EmptyState } from '@/components/EmptyState';
+import { EpisodeIcon } from '@/components/EpisodeIcon';
 import { ProgressRing } from '@/components/ProgressRing';
 import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -182,7 +183,7 @@ export default function TodayScreen() {
       <SectionHeader title="Como você está" />
       {openEpisode && (
         <View style={styles.episode}>
-          <Ionicons name="flame" size={18} color={colors.rose} />
+          <EpisodeIcon condition={condition} size={20} color={colors.rose} />
           <Text color={colors.rose} variant="bodyStrong" style={styles.flex}>
             Em {condition.episodeLabel} desde {formatDateShort(openEpisode.startDate)}
           </Text>
