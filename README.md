@@ -71,12 +71,22 @@ src/
 
 ## Como rodar
 
-Pré-requisitos: Node.js LTS e o app **Expo Go** no iPhone.
+Pré-requisitos: [nvm](https://github.com/nvm-sh/nvm) com Node 24 LTS e o app **Expo Go** no iPhone.
 
 ```bash
+nvm use                 # usa a versão do .nvmrc
 npm install
-npx expo start      # escaneie o QR code com a câmera do iPhone
-npm test
+npm run start:tunnel    # escaneie o QR code com a câmera do iPhone
+```
+
+O `start:tunnel` é necessário quando o projeto roda no WSL2, porque o iPhone não enxerga o IP do WSL na rede local. Fora do WSL, `npm start` basta.
+
+Checagens:
+
+```bash
+npm test                # Jest
+npm run lint            # ESLint
+npm run typecheck       # TypeScript
 ```
 
 Para testar notificações é preciso um build de desenvolvimento, porque o Expo Go tem limitações:
@@ -92,8 +102,8 @@ eas build -p ios --profile development
 
 Em ritmo de estudo (cerca de 1 hora por dia), são de 6 a 10 semanas. Cada etapa termina com algo funcionando no celular.
 
-- [ ] **1. Setup:** `create-expo-app`, TypeScript, ESLint, Git e GitHub, rodando no Expo Go
-- [ ] **2. Navegação com telas falsas:** quatro abas e telas empilhadas com dados fixos
+- [x] **1. Setup:** `create-expo-app`, TypeScript, ESLint, Git e GitHub, rodando no Expo Go
+- [x] **2. Navegação com telas falsas:** quatro abas e telas empilhadas com dados fixos
 - [ ] **3. Banco de dados:** cliente, migrações e repositórios; os dados fixos passam a vir do SQLite
 - [ ] **4. Medicações:** cadastro com validação, lista, `dosesForDate` com testes e botão "tomei" na tela Hoje. **A partir daqui, usar o app de verdade.**
 - [ ] **5. Diário e crises:** formulário gerado pela definição da doença, histórico e adesão
@@ -132,7 +142,3 @@ Valores e regras da Apple mudam, então confira as páginas oficiais antes de co
 Dados de saúde são dados pessoais sensíveis pela LGPD. No MVP eles nunca saem do aparelho. A App Store exige uma política de privacidade pública mesmo para apps sem servidor, e uma página no GitHub Pages resolve. Se um dia houver nuvem, tudo isso precisa ser revisto.
 
 Padrões entre alimentos e sintomas são pistas para conversar com o gastroenterologista, não conclusões.
-
-## Especificação
-
-O documento original do MVP está em [`App RCU — Documentação do MVP.pdf`](<App RCU — Documentação do MVP.pdf>).
