@@ -24,7 +24,7 @@ Objetivos:
 
 - **M1. Cadastrar medicação:** nome, dose em texto livre (ex.: "2 comprimidos de 800 mg"), forma (comprimido, supositório, enema, injeção, infusão ou outro) e observações. A frequência pode ser diária (um ou mais horários) ou a cada N dias/semanas. Data de início obrigatória, data de término opcional. Dá para editar, pausar e arquivar sem perder o histórico.
 - **M2. Lembrete:** notificação local no horário, com nome e dose. Funciona com o app fechado e sem internet.
-- **M3. Registrar dose:** na tela Hoje, cada dose aparece como pendente, tomada ou pulada. Um toque em "Tomei" marca como tomada; um toque longo na dose permite pular ou desmarcar. O histórico mostra a adesão dos últimos 7 e 30 dias.
+- **M3. Registrar dose:** na tela Hoje, cada dose aparece como pendente, tomada ou pulada. Um toque em "Tomei" marca como tomada; marcou sem querer, um toque no selo verde (com o ícone de desfazer) desmarca. Um toque longo na dose permite pular. O histórico mostra a adesão dos últimos 7 e 30 dias.
 
 ### Diário de sintomas
 

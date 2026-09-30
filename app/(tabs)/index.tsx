@@ -101,6 +101,13 @@ export default function TodayScreen() {
   }
 
   // Toque longo numa dose: pular, ou desfazer uma marcação feita por engano.
+  // Marcou sem querer: um toque no selo devolve a dose para pendente.
+  async function undoMark(dose: ScheduledDose) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await clearDoseLog(db, dose.scheduleId, dose.scheduledFor);
+    afterWrite();
+  }
+
   function openDoseMenu(dose: ScheduledDose) {
     const title = `${dose.medicationName} às ${formatTime(dose.scheduledFor)}`;
     if (dose.status === 'pending') {
@@ -165,6 +172,7 @@ export default function TodayScreen() {
               first={index === 0}
               last={index === doses.length - 1}
               onTake={() => markTaken(dose)}
+              onUndo={() => undoMark(dose)}
               onLongPress={() => openDoseMenu(dose)}
             />
           ))}
@@ -322,11 +330,12 @@ interface DoseRowProps {
   first: boolean;
   last: boolean;
   onTake: () => void;
+  onUndo: () => void;
   onLongPress: () => void;
 }
 
 /** Uma dose na linha do tempo do dia: horário, trilho com o marcador e ação. */
-function DoseRow({ dose, first, last, onTake, onLongPress }: DoseRowProps) {
+function DoseRow({ dose, first, last, onTake, onUndo, onLongPress }: DoseRowProps) {
   return (
     <Pressable
       onLongPress={onLongPress}
@@ -355,11 +364,35 @@ function DoseRow({ dose, first, last, onTake, onLongPress }: DoseRowProps) {
           </Text>
         </View>
         {dose.status === 'pending' && <Button title="Tomei" size="sm" variant="soft" onPress={onTake} />}
-        {dose.status === 'taken' && dose.takenAt && (
-          <Chip tone="sage" icon="checkmark" label={`às ${formatTime(dose.takenAt)}`} />
+        {dose.status !== 'pending' && (
+          <MarkedBadge
+            taken={dose.status === 'taken'}
+            label={dose.status === 'taken' && dose.takenAt ? `às ${formatTime(dose.takenAt)}` : dose.status === 'taken' ? 'Tomada' : 'Pulada'}
+            onUndo={onUndo}
+          />
         )}
-        {dose.status === 'skipped' && <Chip tone="amber" label="Pulada" />}
       </View>
+    </Pressable>
+  );
+}
+
+/** Selo da dose marcada. Tocar desfaz a marcação; o ícone de desfazer deixa isso visível. */
+function MarkedBadge({ taken, label, onUndo }: { taken: boolean; label: string; onUndo: () => void }) {
+  const tone = taken ? { fg: colors.sage, bg: colors.sageSoft } : { fg: colors.amber, bg: colors.amberSoft };
+  return (
+    <Pressable
+      onPress={onUndo}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`${taken ? 'Tomada' : 'Pulada'} ${label}. Toque para desmarcar.`}
+      style={({ pressed }) => [styles.badge, { backgroundColor: tone.bg }, pressed && styles.badgePressed]}
+    >
+      <Ionicons name={taken ? 'checkmark' : 'remove'} size={14} color={tone.fg} />
+      <Text color={tone.fg} style={styles.badgeLabel}>
+        {label}
+      </Text>
+      <View style={[styles.badgeDivider, { backgroundColor: tone.fg }]} />
+      <Ionicons name="arrow-undo" size={13} color={tone.fg} />
     </Pressable>
   );
 }
@@ -432,6 +465,17 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.sm,
     paddingRight: spacing.lg,
   },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  badgePressed: { opacity: 0.6 },
+  badgeLabel: { fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 17 },
+  badgeDivider: { width: StyleSheet.hairlineWidth, height: 12, opacity: 0.5, marginHorizontal: 1 },
   doseDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
 
   remindersOff: {
